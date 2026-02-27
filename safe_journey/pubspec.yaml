@@ -1,0 +1,38 @@
+name: safe_journey
+description: SafeJourney - Güvenli Seyahat Uygulaması
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+    
+  # Harita
+  google_maps_flutter: ^2.5.0
+
+  # Konum
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
+  # HTTP
+  http: ^1.1.0
+
+  # State Management
+  provider: ^6.1.1
+
+  # Depolama
+  shared_preferences: ^2.2.2
+
+  # İzinler
+  permission_handler: ^11.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
