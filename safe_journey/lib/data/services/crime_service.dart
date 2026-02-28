@@ -1,29 +1,19 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
-import '../../core/env.dart';
-import '../../core/api.dart';
-import '../models/crime_point.dart';
+import '../../core/constants.dart';
+import '../../core/api_client.dart';
+import '../models/heat_cluster.dart';
 
 class CrimeService {
   final ApiClient _api;
   CrimeService(this._api);
 
-  // Ham noktalar (eski endpoint)
-  Future<List<CrimePoint>> fetchCrimePoints({int limit = 5000}) async {
-    final uri = Uri.parse('${Env.baseUrl}/api/crimes?limit=$limit');
-    final data = await _api.getJson(uri) as List;
-    return data
-        .map((e) => CrimePoint.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<List<CrimePoint>> fetchHeat({
+  Future<List<HeatCluster>> fetchHeatClusters({
     required LatLng sw,
     required LatLng ne,
     required int zoom,
-    int maxPoints = 3000,
-    String? crimeType, // THEFT gibi. null ise filtre yok
-    int? year,
+    int days = 365,
+    int limit = 800,
+    String? crimeType,
   }) async {
     final qp = <String, String>{
       'min_lat': sw.latitude.toString(),
@@ -31,23 +21,23 @@ class CrimeService {
       'max_lat': ne.latitude.toString(),
       'max_lng': ne.longitude.toString(),
       'zoom': zoom.toString(),
-      'max_points': maxPoints.toString(),
-      if (crimeType != null && crimeType.isNotEmpty && crimeType != 'Tümü')
-        'crime_type': crimeType,
-      if (year != null) 'year': year.toString(),
+      'days': days.toString(),
+      'limit': limit.toString(),
     };
+
+    if (crimeType != null) qp['crime_type'] = crimeType;
 
     final uri = Uri.parse('${Env.baseUrl}/api/crimes/heat')
         .replace(queryParameters: qp);
 
-    final data = await _api.getJson(uri) as List;
+    final json = await _api.getJson(uri);
 
-    // heat endpoint crime alanı dönmüyorsa HEAT bas
-    return data
-        .map((e) => CrimePoint.fromJson({
-              'crime': 'HEAT',
-              ...(e as Map<String, dynamic>),
-            }))
+    if (json is! List) {
+      throw Exception('Unexpected response type: ${json.runtimeType}');
+    }
+
+    return json
+        .map((e) => HeatCluster.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }
