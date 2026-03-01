@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -36,7 +35,7 @@ class HeatmapController extends ChangeNotifier {
 
   void scheduleFetch() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), fetchHeat);
+    _debounce = Timer(const Duration(milliseconds: 1000), fetchHeat);
   }
 
   Future<void> fetchHeat() async {
@@ -71,10 +70,10 @@ class HeatmapController extends ChangeNotifier {
   }
 
   int _limitForZoom(int zoom) {
-    if (zoom <= 10) return 280;
-    if (zoom <= 12) return 500;
-    if (zoom <= 14) return 800;
-    return 1100;
+    if (zoom <= 10) return 80;
+    if (zoom <= 12) return 120;
+    if (zoom <= 14) return 200;
+    return 300;
   }
 
   Color _heatColor(int c) {

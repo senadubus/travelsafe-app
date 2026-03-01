@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/constants.dart';
 import '../../core/api_client.dart';
@@ -12,7 +14,7 @@ class CrimeService {
     required LatLng ne,
     required int zoom,
     int days = 365,
-    int limit = 800,
+    int limit = 150,
     String? crimeType,
   }) async {
     final qp = <String, String>{
@@ -30,11 +32,13 @@ class CrimeService {
     final uri = Uri.parse('${Env.baseUrl}/api/crimes/heat')
         .replace(queryParameters: qp);
 
-    final json = await _api.getJson(uri);
+    final bytes = await _api.getBytes(uri);
 
-    if (json is! List) {
-      throw Exception('Unexpected response type: ${json.runtimeType}');
+    if (bytes.isEmpty) {
+      throw Exception('Unexpected response type: ${bytes.runtimeType}');
     }
+
+    final json = jsonDecode(utf8.decode(bytes)) as List<dynamic>;
 
     return json
         .map((e) => HeatCluster.fromJson(e as Map<String, dynamic>))
