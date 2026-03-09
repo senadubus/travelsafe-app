@@ -56,7 +56,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
         controller: controller,
       ),
       zIndex: 10,
-      transparency: 0.15,
+      transparency: 0.05,
     );
   }
 
@@ -75,7 +75,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     final bounds = await _mapController!.getVisibleRegion();
     final zoom = await _mapController!.getZoomLevel();
-
+    print("🔍🔍🔍 MAP ZOOM LEVEL >>> $zoom <<< 🔍🔍🔍");
     await fetchCrimePoints(bounds, zoom);
   }
 
