@@ -18,10 +18,13 @@ List<Map<String, dynamic>> _parseMarkers(String body) {
   final points = (data['points'] as List?) ?? [];
 
   return points.map<Map<String, dynamic>>((p) {
+    final lat = (p['lat'] as num).toDouble();
+    final lng = (p['lng'] as num).toDouble();
+
     return {
-      'id': p['id'].toString(),
-      'lat': (p['lat'] as num).toDouble(),
-      'lng': (p['lng'] as num).toDouble(),
+      'id': p['id']?.toString() ?? '${lat}_$lng',
+      'lat': lat,
+      'lng': lng,
       'crimeType': p['crime_type']?.toString() ?? 'Crime',
       'description': p['description']?.toString() ?? '',
     };
@@ -41,6 +44,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
   GoogleMapController? _mapController;
   Set<Marker> _crimeMarkers = {};
+  double _currentZoom = 12.0;
   final http.Client _client = http.Client();
   int _requestId = 0;
 
@@ -68,6 +72,13 @@ class _HeatmapPageState extends State<HeatmapPage> {
     super.dispose();
   }
 
+  Set<TileOverlay> _buildTileOverlays() {
+    if (_currentZoom >= 15) {
+      return {};
+    }
+    return {_heatOverlay};
+  }
+
   Future<void> _handleCameraIdle() async {
     controller.scheduleFetch();
 
@@ -75,14 +86,18 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     final bounds = await _mapController!.getVisibleRegion();
     final zoom = await _mapController!.getZoomLevel();
-    print("🔍🔍🔍 MAP ZOOM LEVEL >>> $zoom <<< 🔍🔍🔍");
+    if (!mounted) return;
+
+    setState(() {
+      _currentZoom = zoom;
+    });
     await fetchCrimePoints(bounds, zoom);
   }
 
   Future<void> fetchCrimePoints(LatLngBounds bounds, double zoom) async {
     final int currentRequestId = ++_requestId;
 
-    if (zoom < 13) {
+    if (zoom < 15) {
       if (_crimeMarkers.isNotEmpty && mounted) {
         setState(() {
           _crimeMarkers = {};
@@ -92,8 +107,6 @@ class _HeatmapPageState extends State<HeatmapPage> {
     }
 
     try {
-      final limit = zoom >= 15 ? 150 : 80;
-
       final uri = Uri.parse('${Env.baseUrl}/api/crimes/points').replace(
         queryParameters: {
           'min_lat': bounds.southwest.latitude.toString(),
@@ -101,7 +114,10 @@ class _HeatmapPageState extends State<HeatmapPage> {
           'max_lat': bounds.northeast.latitude.toString(),
           'max_lng': bounds.northeast.longitude.toString(),
           'days': '30',
-          'limit': limit.toString(),
+          'limit': '150',
+
+          //burada gün ve limit sayısı veriliyor, sonrasında değiştirebilirsi
+          //tam olarak bu noktadan değiştirmek lazım
         },
       );
 
@@ -154,6 +170,10 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
               final bounds = await c.getVisibleRegion();
               final zoom = await c.getZoomLevel();
+              if (!mounted) return;
+              setState(() {
+                _currentZoom = zoom;
+              });
               await fetchCrimePoints(bounds, zoom);
             },
             onCameraIdle: _handleCameraIdle,
@@ -161,7 +181,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
             compassEnabled: false,
             tiltGesturesEnabled: false,
             mapToolbarEnabled: false,
-            tileOverlays: {_heatOverlay},
+            tileOverlays: _buildTileOverlays(),
             markers: _crimeMarkers,
           ),
           AnimatedBuilder(
