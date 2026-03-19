@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:safe_journey/features/map/presentations/crime_map_page.dart';
-import 'features/map/presentations/map_screen.dart';
+import 'features/heatmap/home_shell_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +15,7 @@ class TravelSafeApp extends StatelessWidget {
       title: 'TravelSafe',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light(),
-      home: const CrimeMapPage(),
+      home: const HomeShellPage(),
     );
   }
 }

@@ -13,9 +13,9 @@ class CrimeService {
     required LatLng sw,
     required LatLng ne,
     required int zoom,
-    int days = 365,
+    required int days,
+    required String? crimeType,
     int limit = 150,
-    String? crimeType,
   }) async {
     final qp = <String, String>{
       'min_lat': sw.latitude.toString(),

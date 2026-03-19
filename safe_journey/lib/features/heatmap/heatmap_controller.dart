@@ -9,6 +9,11 @@ import '../../data/services/crime_service.dart';
 class HeatmapController extends ChangeNotifier {
   final CrimeService _service = CrimeService(ApiClient());
 
+  HeatmapController({
+    required this.days,
+    required this.crimeType,
+  });
+
   GoogleMapController? _map;
   Timer? _debounce;
 
