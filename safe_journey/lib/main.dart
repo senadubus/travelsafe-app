@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
-import 'features/heatmap/heatmap_page.dart';
+import 'package:safe_journey/features/map/presentations/crime_map_page.dart';
+import 'features/map/presentations/map_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const TravelSafeApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class TravelSafeApp extends StatelessWidget {
+  const TravelSafeApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'TravelSafe',
       debugShowCheckedModeBanner: false,
-      home: HeatmapPage(),
+      theme: ThemeData.light(),
+      home: const CrimeMapPage(),
     );
   }
 }
