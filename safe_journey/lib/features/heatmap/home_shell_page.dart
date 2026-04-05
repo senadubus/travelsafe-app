@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'heatmap_page.dart';
-import 'crime_points_page.dart';
 import 'safe_route_page.dart';
 import 'profile_page.dart';
 
@@ -17,11 +16,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
   int _currentIndex = 0;
 
   // Pages are created once; IndexedStack keeps them alive.
-  static const List<Widget> _pages = [
-    HeatmapPage(),
-    CrimePointsPage(),
-    SafeRoutePage(),
-    ProfilePage(),
+  static final List<Widget> _pages = [
+    const HeatmapPage(),
+    const SafeRoutePage(),
+    const ProfilePage(),
   ];
 
   static const List<NavigationDestination> _destinations = [

@@ -46,6 +46,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
   // ── filter state ─────────────────────────────────────────────────────────
   String _selectedType = 'All';
   int _selectedDays = 30;
+  Timer? _markerDebounce;
 
   // ── services ─────────────────────────────────────────────────────────────
   final ApiClient _apiClient = ApiClient();
@@ -61,6 +62,12 @@ class _HeatmapPageState extends State<HeatmapPage> {
   // ── cluster / summary state ──────────────────────────────────────────────
   List<HeatCluster> _clusters = [];
   bool _loadingClusters = false;
+  Set<Marker> _markers = {};
+  bool _showMarkers = false;
+
+  LatLngBounds? _lastMarkerBounds;
+  int? _lastMarkerDays;
+  String? _lastMarkerType;
 
   static const _initialCamera = CameraPosition(
     target: LatLng(41.87811, -87.6298),
@@ -76,7 +83,6 @@ class _HeatmapPageState extends State<HeatmapPage> {
       days: _selectedDays,
       crimeType: null,
     );
-
     _tileOverlay = _buildOverlay();
   }
 
@@ -84,10 +90,18 @@ class _HeatmapPageState extends State<HeatmapPage> {
   void dispose() {
     _mapController?.dispose();
     _heatCtrl.disposeAll();
+    _markerDebounce?.cancel();
     super.dispose();
   }
 
   // ── tile overlay ─────────────────────────────────────────────────────────
+  bool _boundsAlmostSame(LatLngBounds a, LatLngBounds b) {
+    const eps = 0.0015;
+    return (a.southwest.latitude - b.southwest.latitude).abs() < eps &&
+        (a.southwest.longitude - b.southwest.longitude).abs() < eps &&
+        (a.northeast.latitude - b.northeast.latitude).abs() < eps &&
+        (a.northeast.longitude - b.northeast.longitude).abs() < eps;
+  }
 
   TileOverlay _buildOverlay() {
     return TileOverlay(
@@ -103,7 +117,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
   }
 
   Set<TileOverlay> _buildTileOverlays() {
-    if (!_heatmapVisible || _tileOverlay == null) return {};
+    if (!_heatmapVisible || _tileOverlay == null || _showMarkers) return {};
     return {_tileOverlay!};
   }
 
@@ -123,6 +137,13 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     await _onCameraIdle();
     await c.clearTileCache(_tileOverlay!.tileOverlayId);
+    if (_showMarkers) {
+      _markerDebounce?.cancel();
+      _markerDebounce = Timer(const Duration(milliseconds: 300), () async {
+        await _loadCrimeMarkers(bounds);
+      });
+      return;
+    }
   }
 
   // ── camera idle → refresh clusters ──────────────────────────────────────
@@ -131,11 +152,31 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     final bounds = await _mapController!.getVisibleRegion();
     final zoom = await _mapController!.getZoomLevel();
+
     if (!mounted) return;
 
     setState(() {
-      _loadingClusters = true;
       _currentZoom = zoom;
+    });
+
+    // 🔥 MARKER GEÇİŞİ
+    final showMarkersNow = zoom >= 16;
+
+    if (showMarkersNow != _showMarkers) {
+      setState(() {
+        _showMarkers = showMarkersNow;
+      });
+    }
+
+    // ───────────── MARKER MODE ─────────────
+    if (_showMarkers) {
+      await _loadCrimeMarkers(bounds);
+      return; // heatmap çalışmasın
+    }
+
+    // ───────────── HEATMAP MODE ─────────────
+    setState(() {
+      _loadingClusters = true;
     });
 
     try {
@@ -150,12 +191,10 @@ class _HeatmapPageState extends State<HeatmapPage> {
       if (mounted) {
         setState(() => _clusters = result);
       }
-    } catch (_) {
-      // eski veriyi koru
-    } finally {
-      if (mounted) {
-        setState(() => _loadingClusters = false);
-      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _loadingClusters = false);
     }
   }
 
@@ -203,6 +242,49 @@ class _HeatmapPageState extends State<HeatmapPage> {
     return _RiskLevel.unknown;
   }
 
+  Future<void> _loadCrimeMarkers(LatLngBounds bounds) async {
+    final selectedCrimeType =
+        _selectedType == 'All' ? null : _selectedType.toUpperCase();
+
+    if (_lastMarkerBounds != null &&
+        _boundsAlmostSame(_lastMarkerBounds!, bounds) &&
+        _lastMarkerDays == _selectedDays &&
+        _lastMarkerType == selectedCrimeType) {
+      return;
+    }
+    _lastMarkerBounds = bounds;
+    _lastMarkerDays = _selectedDays;
+    _lastMarkerType = selectedCrimeType;
+    try {
+      final points = await _crimeService.fetchCrimePoints(
+        sw: bounds.southwest,
+        ne: bounds.northeast,
+        days: _selectedDays,
+        crimeType: _selectedType == 'All' ? null : _selectedType.toUpperCase(),
+        limit: 80,
+      );
+
+      final markers = points.map((p) {
+        return Marker(
+          markerId: MarkerId('crime_${p.lat}_${p.lng}'),
+          position: LatLng(p.lat, p.lng),
+          infoWindow: InfoWindow(
+            title: p.crime,
+            snippet: p.description ?? '',
+          ),
+        );
+      }).toSet();
+
+      if (!mounted) return;
+
+      setState(() {
+        _markers = markers;
+      });
+    } catch (e) {
+      print("marker error: $e");
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -215,6 +297,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
             onCameraIdle: _onCameraIdle,
             initialCameraPosition: _initialCamera,
             tileOverlays: _buildTileOverlays(),
+            markers: _showMarkers ? _markers : {},
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,

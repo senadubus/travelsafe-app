@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/constants.dart';
 import '../../core/api_client.dart';
 import '../models/heat_cluster.dart';
+import '../models/crime_point.dart';
 
 class CrimeService {
   final ApiClient _api;
@@ -42,6 +43,38 @@ class CrimeService {
 
     return json
         .map((e) => HeatCluster.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<CrimePoint>> fetchCrimePoints({
+    required LatLng sw,
+    required LatLng ne,
+    required int days,
+    required String? crimeType,
+    int limit = 300,
+  }) async {
+    final qp = <String, String>{
+      'min_lat': sw.latitude.toString(),
+      'min_lng': sw.longitude.toString(),
+      'max_lat': ne.latitude.toString(),
+      'max_lng': ne.longitude.toString(),
+      'days': days.toString(),
+      'limit': limit.toString(),
+    };
+
+    if (crimeType != null) {
+      qp['crime_type'] = crimeType;
+    }
+
+    final uri = Uri.parse('${Env.baseUrl}/api/crimes/points')
+        .replace(queryParameters: qp);
+
+    final json = await _api.getJson(uri) as Map<String, dynamic>;
+
+    final points = json['points'] as List<dynamic>? ?? [];
+
+    return points
+        .map((e) => CrimePoint.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }
