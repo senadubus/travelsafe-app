@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'heatmap_page.dart';
 import 'safe_route_page.dart';
 import 'profile_page.dart';
+import 'crime_points_page.dart';
 
 /// Root shell that owns the bottom [NavigationBar] and an [IndexedStack]
 /// so every tab preserves its scroll / map state across switches.
@@ -18,6 +19,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
   // Pages are created once; IndexedStack keeps them alive.
   static final List<Widget> _pages = [
     const HeatmapPage(),
+    const CrimePointsPage(),
     const SafeRoutePage(),
     const ProfilePage(),
   ];

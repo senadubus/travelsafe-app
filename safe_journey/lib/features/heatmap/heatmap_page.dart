@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:safe_journey/core/api_client.dart';
+import 'package:safe_journey/data/models/crime_point.dart';
 import 'package:safe_journey/data/models/heat_cluster.dart';
 import 'package:safe_journey/data/services/crime_service.dart';
 import 'package:safe_journey/data/services/tile_overlay.dart';
@@ -47,6 +48,8 @@ class _HeatmapPageState extends State<HeatmapPage> {
   String _selectedType = 'All';
   int _selectedDays = 30;
   Timer? _markerDebounce;
+  final Map<String, BitmapDescriptor> _markerIcons = {};
+  bool _markerIconsReady = false;
 
   // ── services ─────────────────────────────────────────────────────────────
   final ApiClient _apiClient = ApiClient();
@@ -64,6 +67,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
   bool _loadingClusters = false;
   Set<Marker> _markers = {};
   bool _showMarkers = false;
+  CrimePoint? _selectedCrime;
 
   LatLngBounds? _lastMarkerBounds;
   int? _lastMarkerDays;
@@ -92,6 +96,119 @@ class _HeatmapPageState extends State<HeatmapPage> {
     _heatCtrl.disposeAll();
     _markerDebounce?.cancel();
     super.dispose();
+  }
+
+  String getCrimeCategory(String crime) {
+    final c = crime.toUpperCase();
+
+    if (['BATTERY', 'ASSAULT', 'HOMICIDE'].contains(c)) return 'VIOLENCE';
+    if (c.contains('SEX')) return 'SEXUAL';
+    if (c == 'BURGLARY') return 'BURGLARY';
+    if (c == 'THEFT') return 'THEFT';
+    if (c == 'ROBBERY') return 'ROBBERY';
+    if (c.contains('VEHICLE')) return 'VEHICLE';
+    if (c == 'NARCOTICS') return 'DRUG';
+    if (c == 'ARSON') return 'FIRE';
+    if (c.contains('WEAPON')) return 'WEAPON';
+    if (c.contains('TRESPASS')) return 'TRESPASS';
+    if (c.contains('DECEPTIVE')) return 'FRAUD';
+    if (c.contains('CHILD')) return 'CHILD';
+    if (c == 'KIDNAPPING') return 'KIDNAPPING';
+    if (c.contains('DOMESTIC')) return 'DOMESTIC';
+
+    return 'PUBLIC';
+  }
+
+  Future<void> _loadMarkerIcons() async {
+    if (_markerIconsReady) return;
+
+    const config = ImageConfiguration(size: Size(48, 48));
+
+    _markerIcons['VIOLENCE'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/VIOLENCE.png',
+    );
+
+    _markerIcons['SEXUAL'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/SEXUAL.png',
+    );
+
+    _markerIcons['BURGLARY'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/BURGLARY.png',
+    );
+
+    _markerIcons['THEFT'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/THEFT.png',
+    );
+
+    _markerIcons['ROBBERY'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/ROBBERY.png',
+    );
+
+    _markerIcons['VEHICLE'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/VEHICLE.png',
+    );
+
+    _markerIcons['DRUG'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/DRUG.png',
+    );
+
+    _markerIcons['FIRE'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/FIRE.png',
+    );
+
+    _markerIcons['WEAPON'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/WEAPON.png',
+    );
+
+    _markerIcons['TRESPASS'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/TRESPASS.png',
+    );
+
+    _markerIcons['FRAUD'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/FRAUD.png',
+    );
+
+    _markerIcons['CHILD'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/CHILD.png',
+    );
+
+    _markerIcons['KIDNAPPING'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/KIDNAPPING.png',
+    );
+
+    _markerIcons['DOMESTIC'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/DOMESTIC.png',
+    );
+
+    _markerIcons['PUBLIC'] = await BitmapDescriptor.asset(
+      config,
+      'assets/markers/PUBLIC.png',
+    );
+
+    _markerIconsReady = true;
+  }
+
+  BitmapDescriptor _iconForCrime(String crime) {
+    if (!_markerIconsReady) {
+      return BitmapDescriptor.defaultMarker; // fallback
+    }
+
+    final key = getCrimeCategory(crime);
+    return _markerIcons[key] ?? _markerIcons['PUBLIC']!;
   }
 
   // ── tile overlay ─────────────────────────────────────────────────────────
@@ -124,6 +241,12 @@ class _HeatmapPageState extends State<HeatmapPage> {
   Future<void> _onMapCreated(GoogleMapController c) async {
     _mapController = c;
     _heatCtrl.attachMap(c);
+
+    try {
+      await _loadMarkerIcons();
+    } catch (e) {
+      debugPrint('ICON LOAD ERROR: $e');
+    }
 
     final bounds = await c.getVisibleRegion();
     final zoom = await c.getZoomLevel();
@@ -159,15 +282,24 @@ class _HeatmapPageState extends State<HeatmapPage> {
       _currentZoom = zoom;
     });
 
-    // 🔥 MARKER GEÇİŞİ
-    final showMarkersNow = zoom >= 16;
+    // Marker Geçişi !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    final showMarkersNow = zoom >= 15;
 
     if (showMarkersNow != _showMarkers) {
       setState(() {
         _showMarkers = showMarkersNow;
+
+        if (!_showMarkers) {
+          _markers = {};
+          _selectedCrime = null;
+          _lastMarkerBounds = null;
+          _lastMarkerDays = null;
+          _lastMarkerType = null;
+        }
       });
     }
-
     // ───────────── MARKER MODE ─────────────
     if (_showMarkers) {
       await _loadCrimeMarkers(bounds);
@@ -176,6 +308,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     // ───────────── HEATMAP MODE ─────────────
     setState(() {
+      _selectedCrime = null;
       _loadingClusters = true;
     });
 
@@ -208,6 +341,11 @@ class _HeatmapPageState extends State<HeatmapPage> {
 
     setState(() {
       _tileOverlay = _buildOverlay();
+      _selectedCrime = null;
+      _markers = {};
+      _lastMarkerBounds = null;
+      _lastMarkerDays = null;
+      _lastMarkerType = null;
     });
 
     if (_mapController != null && oldOverlayId != null) {
@@ -243,6 +381,9 @@ class _HeatmapPageState extends State<HeatmapPage> {
   }
 
   Future<void> _loadCrimeMarkers(LatLngBounds bounds) async {
+    if (!_markerIconsReady) {
+      await _loadMarkerIcons();
+    }
     final selectedCrimeType =
         _selectedType == 'All' ? null : _selectedType.toUpperCase();
 
@@ -268,10 +409,13 @@ class _HeatmapPageState extends State<HeatmapPage> {
         return Marker(
           markerId: MarkerId('crime_${p.lat}_${p.lng}'),
           position: LatLng(p.lat, p.lng),
-          infoWindow: InfoWindow(
-            title: p.crime,
-            snippet: p.description ?? '',
-          ),
+          icon: _iconForCrime(p.crime),
+          onTap: () {
+            setState(() {
+              _selectedCrime = p;
+            });
+          },
+          infoWindow: InfoWindow.noText,
         );
       }).toSet();
 
@@ -295,6 +439,13 @@ class _HeatmapPageState extends State<HeatmapPage> {
           GoogleMap(
             onMapCreated: _onMapCreated,
             onCameraIdle: _onCameraIdle,
+            onTap: (_) {
+              if (_selectedCrime != null) {
+                setState(() {
+                  _selectedCrime = null;
+                });
+              }
+            },
             initialCameraPosition: _initialCamera,
             tileOverlays: _buildTileOverlays(),
             markers: _showMarkers ? _markers : {},
@@ -356,21 +507,20 @@ class _HeatmapPageState extends State<HeatmapPage> {
               ],
             ),
           ),
-
-          // ── Bottom summary card ────────────────────────────────────────
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 12,
-            child: _SummaryCard(
-              riskLevel: _riskLevel,
-              totalIncidents: _totalIncidents,
-              selectedType: _selectedType,
-              selectedDays: _selectedDays,
-              isLoading: _loadingClusters,
-              zoom: _currentZoom,
+          if (_selectedCrime != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 6,
+              child: _CrimeDetailCard(
+                crime: _selectedCrime!,
+                onClose: () {
+                  setState(() {
+                    _selectedCrime = null;
+                  });
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -595,139 +745,224 @@ class _MapFab extends StatelessWidget {
   }
 }
 
-// ─── Summary Card ─────────────────────────────────────────────────────────────
+class _CrimeDetailCard extends StatelessWidget {
+  final CrimePoint crime;
+  final VoidCallback onClose;
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.riskLevel,
-    required this.totalIncidents,
-    required this.selectedType,
-    required this.selectedDays,
-    required this.isLoading,
-    required this.zoom,
+  const _CrimeDetailCard({
+    required this.crime,
+    required this.onClose,
   });
-
-  final _RiskLevel riskLevel;
-  final int totalIncidents;
-  final String selectedType;
-  final int selectedDays;
-  final bool isLoading;
-  final double zoom;
 
   @override
   Widget build(BuildContext context) {
-    final (label, color, icon) = switch (riskLevel) {
-      _RiskLevel.high => ('High Risk', Colors.red[600]!, Icons.warning_rounded),
-      _RiskLevel.medium => (
-          'Moderate Risk',
-          Colors.orange[700]!,
-          Icons.info_outline
-        ),
-      _RiskLevel.low => (
-          'Low Risk',
-          Colors.green[600]!,
-          Icons.check_circle_outline
-        ),
-      _RiskLevel.unknown => ('Scanning...', Colors.grey[500]!, Icons.radar),
-    };
+    final date = crime.crimeDate != null
+        ? "${crime.crimeDate!.day.toString().padLeft(2, '0')}/"
+            "${crime.crimeDate!.month.toString().padLeft(2, '0')}/"
+            "${crime.crimeDate!.year}"
+        : "Unknown date";
+
+    final time = crime.crimeDate != null
+        ? "${crime.crimeDate!.hour.toString().padLeft(2, '0')}:"
+            "${crime.crimeDate!.minute.toString().padLeft(2, '0')}"
+        : "--:--";
+
+    final description =
+        (crime.description != null && crime.description!.trim().isNotEmpty)
+            ? crime.description!.trim()
+            : "No additional description available.";
 
     return Material(
-      color: Colors.white,
-      elevation: 2,
-      shadowColor: Colors.black12,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: isLoading
-            ? const SizedBox(
-                height: 40,
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              )
-            : Row(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: _kOrange.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(icon, color: color, size: 20),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: _kOrange,
+                      size: 22,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          label,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: color,
+                          crime.crime,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F1F1F),
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
-                          '$totalIncidents incidents · $selectedType · ${_daysLabel(selectedDays)}',
+                          "Incident details",
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          zoom >= 15
-                              ? 'Zoomed in: individual incidents'
-                              : 'Zoomed out: heatmap overlay active',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (totalIncidents > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
+                  InkWell(
+                    onTap: onClose,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.grey[100],
+                        shape: BoxShape.circle,
                       ),
-                      child: Text(
-                        '$totalIncidents',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: color,
-                        ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.black54,
                       ),
                     ),
+                  ),
                 ],
               ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DetailPill(
+                      icon: Icons.calendar_today_rounded,
+                      label: "Date",
+                      value: date,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DetailPill(
+                      icon: Icons.access_time_rounded,
+                      label: "Time",
+                      value: time,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7FA),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE9E9EF)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Description",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: Color(0xFF2D2D2D),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  String _daysLabel(int days) {
-    if (days >= 365) return '1 year';
-    if (days >= 180) return '6 months';
-    if (days >= 90) return '3 months';
-    if (days >= 30) return '1 month';
-    return '7 days';
+class _DetailPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetailPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7FA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE9E9EF)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: _kPrimary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF222222),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
