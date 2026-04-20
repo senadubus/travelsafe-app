@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-// ─── constants ────────────────────────────────────────────────────────────────
+import '../../core/api_client.dart';
+import '../../data/models/route_models.dart';
+import '../../data/services/route_service.dart';
 
 const _kPrimary = Color(0xFF6B4FA0);
-const _kOrange  = Color(0xFFE8761A);
+const _kOrange = Color(0xFFE8761A);
 
-// ─── page ─────────────────────────────────────────────────────────────────────
-
-/// Safe Route page — UI only.
-/// Wire up the "Find Safest Route" button once your routing backend is ready.
 class SafeRoutePage extends StatefulWidget {
   const SafeRoutePage({super.key});
 
@@ -18,35 +17,166 @@ class SafeRoutePage extends StatefulWidget {
 
 class _SafeRoutePageState extends State<SafeRoutePage> {
   final _fromCtrl = TextEditingController();
-  final _toCtrl   = TextEditingController();
+  final _toCtrl = TextEditingController();
+
+  late final ApiClient _apiClient;
+  late final RouteService _routeService;
 
   bool _hasResult = false;
   bool _searching = false;
+
+  GoogleMapController? _mapController;
+  List<RouteOption> _routes = [];
+  Set<Polyline> _polylines = {};
+  Set<Marker> _markers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _apiClient = ApiClient();
+    _routeService = RouteService(apiClient: _apiClient);
+
+    // test için istersen hazır koordinat bas
+    _fromCtrl.text = '41.8781,-87.6298';
+    _toCtrl.text = '41.8910,-87.6040';
+  }
 
   @override
   void dispose() {
     _fromCtrl.dispose();
     _toCtrl.dispose();
+    _apiClient.dispose();
     super.dispose();
   }
 
-  // Simulate a search (replace with real backend call when ready)
+  ({double lat, double lng}) _parseLatLng(String value) {
+    final parts = value.split(',');
+    if (parts.length != 2) {
+      throw Exception('Konumu "lat,lng" formatında gir. Örn: 41.8781,-87.6298');
+    }
+
+    final lat = double.tryParse(parts[0].trim());
+    final lng = double.tryParse(parts[1].trim());
+
+    if (lat == null || lng == null) {
+      throw Exception('Geçerli koordinat gir. Örn: 41.8781,-87.6298');
+    }
+
+    return (lat: lat, lng: lng);
+  }
+
   Future<void> _findRoute() async {
     if (_fromCtrl.text.trim().isEmpty || _toCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter both start and destination')),
+        const SnackBar(
+            content: Text('Please enter both start and destination')),
       );
       return;
     }
-    FocusScope.of(context).unfocus();
-    setState(() { _searching = true; _hasResult = false; });
-    // TODO: replace with real API call
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) setState(() { _searching = false; _hasResult = true; });
+
+    try {
+      final start = _parseLatLng(_fromCtrl.text.trim());
+      final end = _parseLatLng(_toCtrl.text.trim());
+
+      FocusScope.of(context).unfocus();
+
+      setState(() {
+        _searching = true;
+        _hasResult = false;
+      });
+
+      final response = await _routeService.getAlternativeRoutes(
+        startLat: start.lat,
+        startLng: start.lng,
+        endLat: end.lat,
+        endLng: end.lng,
+      );
+
+      debugPrint("ROUTE COUNT: ${response.routes.length}");
+      if (response.routes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No route found.')),
+        );
+        return;
+      }
+
+      for (var r in response.routes) {
+        debugPrint("points: ${r.geometry.length}");
+      }
+
+      final polylines = <Polyline>{};
+
+      for (int i = 0; i < response.routes.length; i++) {
+        final route = response.routes[i];
+
+        final points =
+            route.geometry.map((point) => LatLng(point[0], point[1])).toList();
+
+        if (points.isEmpty) continue;
+
+        polylines.add(
+          Polyline(
+            polylineId: PolylineId('route_$i'),
+            points: points,
+            width: i == 0 ? 6 : 4,
+            color: i == 0 ? _kPrimary : (i == 1 ? Colors.green : Colors.orange),
+          ),
+        );
+      }
+
+      final markers = <Marker>{
+        Marker(
+          markerId: const MarkerId('start'),
+          position: LatLng(start.lat, start.lng),
+          infoWindow: const InfoWindow(title: 'Start'),
+        ),
+        Marker(
+          markerId: const MarkerId('end'),
+          position: LatLng(end.lat, end.lng),
+          infoWindow: const InfoWindow(title: 'Destination'),
+        ),
+      };
+
+      setState(() {
+        _routes = response.routes;
+        _polylines = polylines;
+        _markers = markers;
+        _hasResult = response.routes.isNotEmpty;
+      });
+
+      if (response.routes.isNotEmpty &&
+          response.routes.first.geometry.isNotEmpty) {
+        final firstPoint = response.routes.first.geometry.first;
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(
+            LatLng(firstPoint[0], firstPoint[1]),
+            13,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+      setState(() {
+        _hasResult = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _searching = false;
+        });
+      }
+    }
   }
 
   void _clearRoute() {
-    setState(() { _hasResult = false; });
+    setState(() {
+      _hasResult = false;
+      _routes = [];
+      _polylines = {};
+      _markers = {};
+    });
     _fromCtrl.clear();
     _toCtrl.clear();
   }
@@ -54,15 +184,20 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
+    final primaryRoute = _routes.isNotEmpty ? _routes.first : null;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // ── Header ────────────────────────────────────────────────────
           Container(
             color: Colors.white,
             padding: EdgeInsets.only(
-                top: top + 12, left: 16, right: 16, bottom: 16),
+              top: top + 12,
+              left: 16,
+              right: 16,
+              bottom: 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -84,24 +219,20 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
                         label: const Text('Clear'),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey[600],
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Find the safest path between two points',
+                  'Enter coordinates as lat,lng',
                   style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                 ),
-
                 const SizedBox(height: 16),
-
-                // ── From / To fields ─────────────────────────────────
                 _RouteInputField(
                   controller: _fromCtrl,
-                  hint: 'Start location',
+                  hint: 'Start location (lat,lng)',
                   icon: Icons.radio_button_checked,
                   iconColor: _kPrimary,
                   onClear: () => setState(() => _fromCtrl.clear()),
@@ -109,31 +240,31 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
                 const _RouteDivider(),
                 _RouteInputField(
                   controller: _toCtrl,
-                  hint: 'Destination',
+                  hint: 'Destination (lat,lng)',
                   icon: Icons.location_on,
                   iconColor: _kOrange,
                   onClear: () => setState(() => _toCtrl.clear()),
                 ),
-
                 const SizedBox(height: 14),
-
-                // ── Find route button ────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: _searching ? null : _findRoute,
                     icon: _searching
                         ? const SizedBox(
-                            width: 16, height: 16,
+                            width: 16,
+                            height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
                         : const Icon(Icons.alt_route, size: 18),
-                    label: Text(_searching
-                        ? 'Finding safest route…'
-                        : 'Find Safest Route'),
+                    label: Text(
+                      _searching
+                          ? 'Finding safest route…'
+                          : 'Find Safest Route',
+                    ),
                     style: FilledButton.styleFrom(
                       backgroundColor: _kPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -150,13 +281,18 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
               ],
             ),
           ),
-
-          // ── Map area ──────────────────────────────────────────────────
           Expanded(
-            child: _hasResult
+            child: _hasResult && primaryRoute != null
                 ? _RouteMapPreview(
                     from: _fromCtrl.text,
-                    to:   _toCtrl.text,
+                    to: _toCtrl.text,
+                    route: primaryRoute,
+                    routes: _routes,
+                    polylines: _polylines,
+                    markers: _markers,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                    },
                   )
                 : _MapPlaceholder(isSearching: _searching),
           ),
@@ -165,8 +301,6 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
     );
   }
 }
-
-// ─── Route input field ────────────────────────────────────────────────────────
 
 class _RouteInputField extends StatelessWidget {
   const _RouteInputField({
@@ -178,10 +312,10 @@ class _RouteInputField extends StatelessWidget {
   });
 
   final TextEditingController controller;
-  final String                hint;
-  final IconData              icon;
-  final Color                 iconColor;
-  final VoidCallback          onClear;
+  final String hint;
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -204,8 +338,8 @@ class _RouteInputField extends StatelessWidget {
                 builder: (_, v, __) => v.text.isEmpty
                     ? const SizedBox.shrink()
                     : IconButton(
-                        icon: Icon(Icons.clear, size: 16,
-                            color: Colors.grey[400]),
+                        icon: Icon(Icons.clear,
+                            size: 16, color: Colors.grey[400]),
                         onPressed: onClear,
                       ),
               ),
@@ -222,23 +356,23 @@ class _RouteDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 8),
-    child: Column(
-      children: List.generate(
-        3,
-        (_) => Container(
-          width: 2, height: 4, margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(1),
+        padding: const EdgeInsets.only(left: 8),
+        child: Column(
+          children: List.generate(
+            3,
+            (_) => Container(
+              width: 2,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
-
-// ─── Map placeholder ─────────────────────────────────────────────────────────
 
 class _MapPlaceholder extends StatelessWidget {
   const _MapPlaceholder({required this.isSearching});
@@ -246,56 +380,82 @@ class _MapPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: const Color(0xFFEEE8F4),
-    child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isSearching ? Icons.alt_route : Icons.map_outlined,
-            size: 56,
-            color: _kPrimary.withOpacity(0.25),
+        color: const Color(0xFFEEE8F4),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSearching ? Icons.alt_route : Icons.map_outlined,
+                size: 56,
+                color: _kPrimary.withOpacity(0.25),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isSearching
+                    ? 'Calculating safest route…'
+                    : 'Enter start and destination\na s lat,lng to preview the route',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kPrimary.withOpacity(0.45),
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            isSearching
-                ? 'Calculating safest route…'
-                : 'Enter start and destination\nto preview the route',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _kPrimary.withOpacity(0.45),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
-// ─── Route result preview ─────────────────────────────────────────────────────
-
 class _RouteMapPreview extends StatelessWidget {
-  const _RouteMapPreview({required this.from, required this.to});
+  const _RouteMapPreview({
+    required this.from,
+    required this.to,
+    required this.route,
+    required this.routes,
+    required this.polylines,
+    required this.markers,
+    required this.onMapCreated,
+  });
+
   final String from;
   final String to;
+  final RouteOption route;
+  final List<RouteOption> routes;
+  final Set<Polyline> polylines;
+  final Set<Marker> markers;
+  final ValueChanged<GoogleMapController> onMapCreated;
+
+  String _formatMinutes(double meters) {
+    final minutes = (meters / 80).round();
+    return '~$minutes min';
+  }
+
+  String _formatRisk(double risk) => risk.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) {
+    final firstPoint = route.geometry.isNotEmpty
+        ? LatLng(route.geometry.first[0], route.geometry.first[1])
+        : const LatLng(41.8781, -87.6298);
+
     return Stack(
       children: [
-        // Map background (replace with GoogleMap widget when wired up)
-        Container(
-          color: const Color(0xFFE8E3F4),
-          child: CustomPaint(
-            painter: _DummyRoutePainter(),
-            size: Size.infinite,
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: firstPoint,
+            zoom: 13,
           ),
+          onMapCreated: onMapCreated,
+          polylines: polylines,
+          markers: markers,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
         ),
-
-        // Route info card at bottom
         Positioned(
-          left: 12, right: 12, bottom: 12,
+          left: 12,
+          right: 12,
+          bottom: 12,
           child: Material(
             color: Colors.white,
             elevation: 2,
@@ -306,27 +466,27 @@ class _RouteMapPreview extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Stat row
                   Row(
                     children: [
                       _RouteStat(
                         icon: Icons.shield_outlined,
-                        label: 'Safety',
-                        value: '87%',
+                        label: 'Risk',
+                        value: _formatRisk(route.totalRisk),
                         color: Colors.green[600]!,
                       ),
                       const SizedBox(width: 16),
                       _RouteStat(
                         icon: Icons.timer_outlined,
                         label: 'Est. time',
-                        value: '~14 min',
+                        value: _formatMinutes(route.totalLengthM),
                         color: _kPrimary,
                       ),
                       const SizedBox(width: 16),
                       _RouteStat(
                         icon: Icons.straighten_outlined,
                         label: 'Distance',
-                        value: '3.2 km',
+                        value:
+                            '${(route.totalLengthM / 1000).toStringAsFixed(2)} km',
                         color: Colors.grey[600]!,
                       ),
                     ],
@@ -334,7 +494,6 @@ class _RouteMapPreview extends StatelessWidget {
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 10),
-                  // From → To summary
                   Row(
                     children: [
                       const Icon(Icons.radio_button_checked,
@@ -353,8 +512,7 @@ class _RouteMapPreview extends StatelessWidget {
                         child: Icon(Icons.arrow_forward,
                             size: 14, color: Colors.grey),
                       ),
-                      const Icon(Icons.location_on,
-                          size: 14, color: _kOrange),
+                      const Icon(Icons.location_on, size: 14, color: _kOrange),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -366,6 +524,27 @@ class _RouteMapPreview extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (routes.length > 1) ...[
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 34,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: routes.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final r = routes[index];
+                          return Chip(
+                            label: Text(
+                              '${r.routeLabel} • ${(r.totalLengthM / 1000).toStringAsFixed(2)} km',
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ]
                 ],
               ),
             ),
@@ -385,97 +564,35 @@ class _RouteStat extends StatelessWidget {
   });
 
   final IconData icon;
-  final String   label;
-  final String   value;
-  final Color    color;
+  final String label;
+  final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 3),
-          Text(label,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-        ]),
-        const SizedBox(height: 2),
-        Text(value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: color,
-            )),
-      ],
-    ),
-  );
-}
-
-// ─── Dummy route painter (placeholder visual) ─────────────────────────────────
-
-class _DummyRoutePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Light grid
-    final gridPaint = Paint()
-      ..color = _kPrimary.withOpacity(0.06)
-      ..strokeWidth = 1;
-    const spacing = 40.0;
-    for (double x = 0; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (double y = 0; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-
-    // Route line
-    final routePaint = Paint()
-      ..color = _kPrimary
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..moveTo(size.width * 0.2, size.height * 0.8)
-      ..cubicTo(
-        size.width * 0.2, size.height * 0.5,
-        size.width * 0.5, size.height * 0.5,
-        size.width * 0.5, size.height * 0.3,
-      )
-      ..cubicTo(
-        size.width * 0.5, size.height * 0.15,
-        size.width * 0.75, size.height * 0.15,
-        size.width * 0.8, size.height * 0.15,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 13, color: color),
+                const SizedBox(width: 3),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       );
-    canvas.drawPath(path, routePaint);
-
-    // Start dot
-    canvas.drawCircle(
-      Offset(size.width * 0.2, size.height * 0.8),
-      8,
-      Paint()..color = _kPrimary,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.2, size.height * 0.8),
-      4,
-      Paint()..color = Colors.white,
-    );
-
-    // End dot
-    canvas.drawCircle(
-      Offset(size.width * 0.8, size.height * 0.15),
-      8,
-      Paint()..color = _kOrange,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.8, size.height * 0.15),
-      4,
-      Paint()..color = Colors.white,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
