@@ -1,50 +1,55 @@
-class RouteOption {
-  final String routeLabel;
-  final List<int> pathNodes;
-  final List<int> segmentIds;
-  final double totalLengthM;
-  final double totalRisk;
-  final double totalCost;
-  final List<List<double>> geometry;
+class UIRouteResponse {
+  final String message;
+  final int? startNode;
+  final int? endNode;
+  final List<UIRouteOption> routes;
 
-  RouteOption({
-    required this.routeLabel,
-    required this.pathNodes,
-    required this.segmentIds,
-    required this.totalLengthM,
-    required this.totalRisk,
-    required this.totalCost,
-    required this.geometry,
+  UIRouteResponse({
+    required this.message,
+    required this.startNode,
+    required this.endNode,
+    required this.routes,
   });
 
-  factory RouteOption.fromJson(Map<String, dynamic> json) {
-    return RouteOption(
-      routeLabel: json['route_label'] as String,
-      pathNodes: List<int>.from(json['path_nodes'] as List),
-      segmentIds: List<int>.from(json['segment_ids'] as List),
-      totalLengthM: (json['total_length_m'] as num).toDouble(),
-      totalRisk: (json['total_risk'] as num).toDouble(),
-      totalCost: (json['total_cost'] as num).toDouble(),
-      geometry: (json['geometry'] as List)
-          .map(
-            (point) => List<double>.from(
-              (point as List).map((e) => (e as num).toDouble()),
-            ),
-          )
+  factory UIRouteResponse.fromJson(Map<String, dynamic> json) {
+    return UIRouteResponse(
+      message: json['message'] as String? ?? '',
+      startNode: (json['start_node'] as num?)?.toInt(),
+      endNode: (json['end_node'] as num?)?.toInt(),
+      routes: ((json['routes'] as List?) ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map((e) => UIRouteOption.fromJson(e))
           .toList(),
     );
   }
 }
 
-class RouteResponse {
-  final List<RouteOption> routes;
+class UIRouteOption {
+  final int routeId;
+  final double totalLengthM;
+  final List<int> segments;
+  final List<List<double>> geometry;
 
-  RouteResponse({required this.routes});
+  UIRouteOption({
+    required this.routeId,
+    required this.totalLengthM,
+    required this.segments,
+    required this.geometry,
+  });
 
-  factory RouteResponse.fromJson(Map<String, dynamic> json) {
-    return RouteResponse(
-      routes: (json['routes'] as List)
-          .map((e) => RouteOption.fromJson(e as Map<String, dynamic>))
+  factory UIRouteOption.fromJson(Map<String, dynamic> json) {
+    return UIRouteOption(
+      routeId: json['route_id'] as int? ?? 0,
+      totalLengthM: (json['total_length_m'] as num?)?.toDouble() ?? 0.0,
+      segments: ((json['segments'] as List?) ?? [])
+          .map((e) => (e as num).toInt())
+          .toList(),
+      geometry: ((json['geometry'] as List?) ?? [])
+          .map(
+            (point) => ((point as List?) ?? [])
+                .map((e) => (e as num).toDouble())
+                .toList(),
+          )
           .toList(),
     );
   }

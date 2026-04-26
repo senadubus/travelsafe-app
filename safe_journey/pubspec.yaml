@@ -15,8 +15,7 @@ dependencies:
 
   # Konum
   geolocator: ^10.1.0
-  geocoding: ^2.1.1
-
+  geocoding: ^3.0.0
   # HTTP
   http: ^1.1.0
 
