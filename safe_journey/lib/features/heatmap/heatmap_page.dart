@@ -46,7 +46,7 @@ class HeatmapPage extends StatefulWidget {
 class _HeatmapPageState extends State<HeatmapPage> {
   // ── filter state ─────────────────────────────────────────────────────────
   String _selectedType = 'All';
-  int _selectedDays = 30;
+  int _selectedDays = 365;
   Timer? _markerDebounce;
   final Map<String, BitmapDescriptor> _markerIcons = {};
   bool _markerIconsReady = false;

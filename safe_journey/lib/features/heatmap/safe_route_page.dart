@@ -251,6 +251,10 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
               ),
             ),
           );
+
+        _fromCtrl.text =
+            '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
+        _toCtrl.clear();
       } else {
         endPoint = point;
 
@@ -265,6 +269,9 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
             ),
           ),
         );
+
+        _toCtrl.text =
+            '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}';
 
         _fitBounds(startPoint!, endPoint!);
       }
@@ -303,12 +310,10 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
       startPoint = resolvedStart;
       endPoint = resolvedEnd;
 
-      //koordinatları gözüküyor
-
-      //_fromCtrl.text =
-      //    '${resolvedStart.latitude.toStringAsFixed(5)}, ${resolvedStart.longitude.toStringAsFixed(5)}';
-      //_toCtrl.text =
-      //    '${resolvedEnd.latitude.toStringAsFixed(5)}, ${resolvedEnd.longitude.toStringAsFixed(5)}';
+      _fromCtrl.text =
+          '${resolvedStart.latitude.toStringAsFixed(5)}, ${resolvedStart.longitude.toStringAsFixed(5)}';
+      _toCtrl.text =
+          '${resolvedEnd.latitude.toStringAsFixed(5)}, ${resolvedEnd.longitude.toStringAsFixed(5)}';
 
       _markers
         ..clear()
