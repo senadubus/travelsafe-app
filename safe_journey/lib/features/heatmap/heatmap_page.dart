@@ -48,6 +48,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
   String _selectedType = 'All';
   int _selectedDays = 365;
   Timer? _markerDebounce;
+  int _markerRequestId = 0;
   final Map<String, BitmapDescriptor> _markerIcons = {};
   bool _markerIconsReady = false;
 
@@ -292,6 +293,8 @@ class _HeatmapPageState extends State<HeatmapPage> {
         _showMarkers = showMarkersNow;
 
         if (!_showMarkers) {
+          _markerRequestId++;
+          _markerDebounce?.cancel();
           _markers = {};
           _selectedCrime = null;
           _lastMarkerBounds = null;
@@ -302,8 +305,15 @@ class _HeatmapPageState extends State<HeatmapPage> {
     }
     // ───────────── MARKER MODE ─────────────
     if (_showMarkers) {
-      await _loadCrimeMarkers(bounds);
-      return; // heatmap çalışmasın
+      _markerDebounce?.cancel();
+
+      _markerDebounce = Timer(const Duration(milliseconds: 350), () async {
+        if (!mounted) return;
+        final latestBounds = await _mapController!.getVisibleRegion();
+        await _loadCrimeMarkers(latestBounds);
+      });
+
+      return;
     }
 
     // ───────────── HEATMAP MODE ─────────────
@@ -381,9 +391,14 @@ class _HeatmapPageState extends State<HeatmapPage> {
   }
 
   Future<void> _loadCrimeMarkers(LatLngBounds bounds) async {
+    if (!_showMarkers) return;
+
+    final requestId = ++_markerRequestId;
+
     if (!_markerIconsReady) {
       await _loadMarkerIcons();
     }
+
     final selectedCrimeType =
         _selectedType == 'All' ? null : _selectedType.toUpperCase();
 
@@ -393,21 +408,27 @@ class _HeatmapPageState extends State<HeatmapPage> {
         _lastMarkerType == selectedCrimeType) {
       return;
     }
+
     _lastMarkerBounds = bounds;
     _lastMarkerDays = _selectedDays;
     _lastMarkerType = selectedCrimeType;
+
     try {
       final points = await _crimeService.fetchCrimePoints(
         sw: bounds.southwest,
         ne: bounds.northeast,
         days: _selectedDays,
-        crimeType: _selectedType == 'All' ? null : _selectedType.toUpperCase(),
+        crimeType: selectedCrimeType,
         limit: 80,
       );
 
+      if (!mounted || !_showMarkers || requestId != _markerRequestId) return;
+
       final markers = points.map((p) {
         return Marker(
-          markerId: MarkerId('crime_${p.lat}_${p.lng}'),
+          markerId: MarkerId(
+            'crime_${p.crime}_${p.lat}_${p.lng}_${p.crimeDate?.millisecondsSinceEpoch ?? 0}',
+          ),
           position: LatLng(p.lat, p.lng),
           icon: _iconForCrime(p.crime),
           onTap: () {
@@ -419,13 +440,11 @@ class _HeatmapPageState extends State<HeatmapPage> {
         );
       }).toSet();
 
-      if (!mounted) return;
-
       setState(() {
         _markers = markers;
       });
     } catch (e) {
-      print("marker error: $e");
+      debugPrint("marker error: $e");
     }
   }
 
