@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 
 import 'package:safe_journey/core/api_client.dart';
+import 'package:safe_journey/data/models/crime_point.dart';
 import 'package:safe_journey/data/models/route_models.dart';
+import 'package:safe_journey/data/services/crime_service.dart';
 import 'package:safe_journey/data/services/route_service.dart';
+import 'package:safe_journey/data/services/tile_overlay.dart';
+import 'package:safe_journey/features/heatmap/heatmap_controller.dart';
 
 const _kPrimary = Color(0xFF6B4FA0);
 const _kBg = Color(0xFFF6F7FB);
@@ -21,11 +27,35 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
   final _fromCtrl = TextEditingController();
   final _toCtrl = TextEditingController();
 
-  int? _selectedRouteIndex;
-  String _selectedMode = "car";
+  late final ApiClient _apiClient;
+  late final RouteService _routeService;
+  late final CrimeService _crimeService;
+  late final HeatmapController _heatCtrl;
 
   GoogleMapController? _mapController;
-  late final RouteService _routeService;
+
+  TileOverlay? _tileOverlay;
+  bool _heatmapVisible = true;
+
+  Timer? _markerDebounce;
+  int _markerRequestId = 0;
+
+  final Set<Marker> _routeMarkers = {};
+  final Set<Marker> _crimeMarkers = {};
+  final Set<Polyline> _polylines = {};
+
+  final Map<String, BitmapDescriptor> _markerIcons = {};
+  bool _markerIconsReady = false;
+
+  LatLngBounds? _lastMarkerBounds;
+  int? _lastMarkerDays;
+  String? _lastMarkerType;
+
+  bool _showCrimeMarkers = false;
+  CrimePoint? _selectedCrime;
+
+  int? _selectedRouteIndex;
+  String _selectedMode = "car";
 
   bool _routeLoading = false;
 
@@ -34,32 +64,45 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
 
   UIRouteResponse? _routeResponse;
 
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
+  int _selectedDays = 365;
+  String _selectedType = 'All';
 
   static const LatLng _initialCenter = LatLng(41.8781, -87.6298);
 
   @override
   void initState() {
     super.initState();
-    _routeService = RouteService(apiClient: ApiClient());
+
+    _apiClient = ApiClient();
+    _routeService = RouteService(apiClient: _apiClient);
+    _crimeService = CrimeService(_apiClient);
+
+    _heatCtrl = HeatmapController(
+      days: _selectedDays,
+      crimeType: null,
+    );
+
+    _tileOverlay = _buildOverlay();
   }
 
   @override
   void dispose() {
     _fromCtrl.dispose();
     _toCtrl.dispose();
+
+    _markerDebounce?.cancel();
+    _heatCtrl.disposeAll();
+    _mapController?.dispose();
+
     super.dispose();
   }
 
   Future<LatLng?> _geocodeText(String text) async {
     final query = text.trim();
-
     if (query.isEmpty) return null;
 
     try {
       final locations = await locationFromAddress('$query, Chicago');
-
       if (locations.isEmpty) return null;
 
       final loc = locations.first;
@@ -67,6 +110,206 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
     } catch (e) {
       debugPrint('Geocoding hata: $e');
       return null;
+    }
+  }
+
+  TileOverlay _buildOverlay() {
+    return TileOverlay(
+      tileOverlayId: TileOverlayId(
+        'safe_route_heat_${_selectedType}_$_selectedDays',
+      ),
+      tileProvider: HeatTileProvider(
+        api: _apiClient,
+        controller: _heatCtrl,
+      ),
+      transparency: 0.0,
+      visible: true,
+      zIndex: 1,
+    );
+  }
+
+  Set<TileOverlay> _buildTileOverlays() {
+    if (!_heatmapVisible || _tileOverlay == null || _showCrimeMarkers) {
+      return {};
+    }
+
+    return {_tileOverlay!};
+  }
+
+  Set<Marker> _buildAllMarkers() {
+    return {
+      ..._routeMarkers,
+      if (_showCrimeMarkers) ..._crimeMarkers,
+    };
+  }
+
+  bool _boundsAlmostSame(LatLngBounds a, LatLngBounds b) {
+    const eps = 0.0015;
+
+    return (a.southwest.latitude - b.southwest.latitude).abs() < eps &&
+        (a.southwest.longitude - b.southwest.longitude).abs() < eps &&
+        (a.northeast.latitude - b.northeast.latitude).abs() < eps &&
+        (a.northeast.longitude - b.northeast.longitude).abs() < eps;
+  }
+
+  String getCrimeCategory(String crime) {
+    final c = crime.toUpperCase();
+
+    if (['BATTERY', 'ASSAULT', 'HOMICIDE'].contains(c)) return 'VIOLENCE';
+    if (c.contains('SEX')) return 'SEXUAL';
+    if (c == 'BURGLARY') return 'BURGLARY';
+    if (c == 'THEFT') return 'THEFT';
+    if (c == 'ROBBERY') return 'ROBBERY';
+    if (c.contains('VEHICLE')) return 'VEHICLE';
+    if (c == 'NARCOTICS') return 'DRUG';
+    if (c == 'ARSON') return 'FIRE';
+    if (c.contains('WEAPON')) return 'WEAPON';
+    if (c.contains('TRESPASS')) return 'TRESPASS';
+    if (c.contains('DECEPTIVE')) return 'FRAUD';
+    if (c.contains('CHILD')) return 'CHILD';
+    if (c == 'KIDNAPPING') return 'KIDNAPPING';
+    if (c.contains('DOMESTIC')) return 'DOMESTIC';
+
+    return 'PUBLIC';
+  }
+
+  Future<void> _loadMarkerIcons() async {
+    if (_markerIconsReady) return;
+
+    const config = ImageConfiguration(size: Size(48, 48));
+
+    for (final key in [
+      'VIOLENCE',
+      'SEXUAL',
+      'BURGLARY',
+      'THEFT',
+      'ROBBERY',
+      'VEHICLE',
+      'DRUG',
+      'FIRE',
+      'WEAPON',
+      'TRESPASS',
+      'FRAUD',
+      'CHILD',
+      'KIDNAPPING',
+      'DOMESTIC',
+      'PUBLIC',
+    ]) {
+      _markerIcons[key] = await BitmapDescriptor.asset(
+        config,
+        'assets/markers/$key.png',
+      );
+    }
+
+    _markerIconsReady = true;
+  }
+
+  BitmapDescriptor _iconForCrime(String crime) {
+    if (!_markerIconsReady) {
+      return BitmapDescriptor.defaultMarker;
+    }
+
+    final key = getCrimeCategory(crime);
+    return _markerIcons[key] ?? _markerIcons['PUBLIC']!;
+  }
+
+  Future<void> _loadCrimeMarkers(LatLngBounds bounds) async {
+    if (!_showCrimeMarkers) return;
+
+    final requestId = ++_markerRequestId;
+
+    if (!_markerIconsReady) {
+      await _loadMarkerIcons();
+    }
+
+    final selectedCrimeType =
+        _selectedType == 'All' ? null : _selectedType.toUpperCase();
+
+    if (_lastMarkerBounds != null &&
+        _boundsAlmostSame(_lastMarkerBounds!, bounds) &&
+        _lastMarkerDays == _selectedDays &&
+        _lastMarkerType == selectedCrimeType) {
+      return;
+    }
+
+    _lastMarkerBounds = bounds;
+    _lastMarkerDays = _selectedDays;
+    _lastMarkerType = selectedCrimeType;
+
+    try {
+      final points = await _crimeService.fetchCrimePoints(
+        sw: bounds.southwest,
+        ne: bounds.northeast,
+        days: _selectedDays,
+        crimeType: selectedCrimeType,
+        limit: 80,
+      );
+
+      if (!mounted || !_showCrimeMarkers || requestId != _markerRequestId) {
+        return;
+      }
+
+      final markers = points.map((p) {
+        return Marker(
+          markerId: MarkerId(
+            'crime_${p.crime}_${p.lat}_${p.lng}_${p.crimeDate?.millisecondsSinceEpoch ?? 0}',
+          ),
+          position: LatLng(p.lat, p.lng),
+          icon: _iconForCrime(p.crime),
+          infoWindow: InfoWindow.noText,
+          onTap: () {
+            setState(() {
+              _selectedCrime = p;
+            });
+          },
+        );
+      }).toSet();
+
+      setState(() {
+        _crimeMarkers
+          ..clear()
+          ..addAll(markers);
+      });
+    } catch (e) {
+      debugPrint('SafeRoute crime marker error: $e');
+    }
+  }
+
+  Future<void> _onCameraIdle() async {
+    if (_mapController == null) return;
+
+    final zoom = await _mapController!.getZoomLevel();
+    final bounds = await _mapController!.getVisibleRegion();
+
+    if (!mounted) return;
+
+    final showMarkersNow = zoom >= 15;
+
+    if (showMarkersNow != _showCrimeMarkers) {
+      setState(() {
+        _showCrimeMarkers = showMarkersNow;
+
+        if (!_showCrimeMarkers) {
+          _crimeMarkers.clear();
+          _selectedCrime = null;
+          _lastMarkerBounds = null;
+          _lastMarkerDays = null;
+          _lastMarkerType = null;
+          _markerRequestId++;
+          _markerDebounce?.cancel();
+        }
+      });
+    }
+
+    if (_showCrimeMarkers) {
+      _markerDebounce?.cancel();
+
+      _markerDebounce = Timer(const Duration(milliseconds: 350), () async {
+        if (!mounted || _mapController == null) return;
+
+        final latestBounds = await _mapController!.getVisibleRegion();
+        await _loadCrimeMarkers(latestBounds);
+      });
     }
   }
 
@@ -80,7 +323,7 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.15),
             blurRadius: 10,
-          )
+          ),
         ],
       ),
       child: Row(
@@ -231,6 +474,7 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
 
   Future<void> _handleMapTap(LatLng point) async {
     setState(() {
+      _selectedCrime = null;
       _routeResponse = null;
       _polylines.clear();
 
@@ -238,8 +482,9 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
         startPoint = point;
         endPoint = null;
 
-        _markers
-          ..clear()
+        _routeMarkers
+          ..removeWhere((m) => m.markerId.value == 'start')
+          ..removeWhere((m) => m.markerId.value == 'end')
           ..add(
             Marker(
               markerId: const MarkerId('start'),
@@ -258,7 +503,8 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
       } else {
         endPoint = point;
 
-        _markers.add(
+        _routeMarkers.removeWhere((m) => m.markerId.value == 'end');
+        _routeMarkers.add(
           Marker(
             markerId: const MarkerId('end'),
             position: point,
@@ -280,6 +526,7 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
 
   Future<void> _calculateAlternativeRoutes() async {
     setState(() {
+      _selectedCrime = null;
       _selectedRouteIndex = null;
       _routeLoading = true;
       _routeResponse = null;
@@ -315,7 +562,7 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
       _toCtrl.text =
           '${resolvedEnd.latitude.toStringAsFixed(5)}, ${resolvedEnd.longitude.toStringAsFixed(5)}';
 
-      _markers
+      _routeMarkers
         ..clear()
         ..add(
           Marker(
@@ -415,8 +662,16 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
       startPoint = null;
       endPoint = null;
       _routeResponse = null;
-      _markers.clear();
+
+      _routeMarkers.clear();
+      _crimeMarkers.clear();
       _polylines.clear();
+
+      _selectedCrime = null;
+      _lastMarkerBounds = null;
+      _lastMarkerDays = null;
+      _lastMarkerType = null;
+
       _fromCtrl.clear();
       _toCtrl.clear();
     });
@@ -499,7 +754,7 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
                           child: const Text('Güvenli Rota'),
                         ),
                       ),
-                      if (_markers.isNotEmpty)
+                      if (_routeMarkers.isNotEmpty)
                         TextButton(
                           onPressed: _clear,
                           child: const Text('Temizle'),
@@ -602,14 +857,40 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
                           target: _initialCenter,
                           zoom: 12,
                         ),
-                        onMapCreated: (controller) {
+                        onMapCreated: (controller) async {
                           _mapController = controller;
+                          _heatCtrl.attachMap(controller);
+
+                          try {
+                            await _loadMarkerIcons();
+                          } catch (e) {
+                            debugPrint('SafeRoute icon load error: $e');
+                          }
+
+                          setState(() {
+                            _tileOverlay = _buildOverlay();
+                          });
+
+                          await _onCameraIdle();
                         },
-                        markers: _markers,
+                        onCameraIdle: _onCameraIdle,
+                        onTap: (point) {
+                          if (_selectedCrime != null) {
+                            setState(() {
+                              _selectedCrime = null;
+                            });
+                            return;
+                          }
+
+                          _handleMapTap(point);
+                        },
+                        tileOverlays: _buildTileOverlays(),
+                        markers: _buildAllMarkers(),
                         polylines: _polylines,
                         myLocationButtonEnabled: false,
                         zoomControlsEnabled: false,
-                        onTap: _handleMapTap,
+                        mapToolbarEnabled: false,
+                        compassEnabled: false,
                       ),
                       if (_routeResponse != null)
                         Positioned(
@@ -623,6 +904,43 @@ class _SafeRoutePageState extends State<SafeRoutePage> {
                         right: 16,
                         child: _buildModeToggle(),
                       ),
+                      Positioned(
+                        top: _routeResponse != null ? 190 : 105,
+                        right: 16,
+                        child: _MapFab(
+                          icon: _heatmapVisible
+                              ? Icons.layers
+                              : Icons.layers_clear,
+                          active: _heatmapVisible,
+                          onTap: () async {
+                            setState(() {
+                              _heatmapVisible = !_heatmapVisible;
+                            });
+
+                            if (_heatmapVisible &&
+                                _mapController != null &&
+                                _tileOverlay != null) {
+                              await _mapController!.clearTileCache(
+                                _tileOverlay!.tileOverlayId,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      if (_selectedCrime != null)
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          bottom: 12,
+                          child: _CrimeDetailCard(
+                            crime: _selectedCrime!,
+                            onClose: () {
+                              setState(() {
+                                _selectedCrime = null;
+                              });
+                            },
+                          ),
+                        ),
                       if (_routeLoading)
                         Container(
                           color: Colors.white.withOpacity(0.35),
@@ -674,6 +992,235 @@ class _InputRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MapFab extends StatelessWidget {
+  const _MapFab({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? _kPrimary : Colors.white,
+      elevation: 2,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            icon,
+            size: 20,
+            color: active ? Colors.white : Colors.grey[700],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CrimeDetailCard extends StatelessWidget {
+  final CrimePoint crime;
+  final VoidCallback onClose;
+
+  const _CrimeDetailCard({
+    required this.crime,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final date = crime.crimeDate != null
+        ? "${crime.crimeDate!.day.toString().padLeft(2, '0')}/"
+            "${crime.crimeDate!.month.toString().padLeft(2, '0')}/"
+            "${crime.crimeDate!.year}"
+        : "Unknown date";
+
+    final time = crime.crimeDate != null
+        ? "${crime.crimeDate!.hour.toString().padLeft(2, '0')}:"
+            "${crime.crimeDate!.minute.toString().padLeft(2, '0')}"
+        : "--:--";
+
+    final description =
+        crime.description != null && crime.description!.trim().isNotEmpty
+            ? crime.description!.trim()
+            : "No additional description available.";
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      crime.crime,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F1F1F),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: onClose,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DetailPill(
+                      icon: Icons.calendar_today_rounded,
+                      label: "Date",
+                      value: date,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DetailPill(
+                      icon: Icons.access_time_rounded,
+                      label: "Time",
+                      value: time,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7FA),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE9E9EF)),
+                ),
+                child: Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Color(0xFF2D2D2D),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _DetailPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7FA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE9E9EF)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: _kPrimary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF222222),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

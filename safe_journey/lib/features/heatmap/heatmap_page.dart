@@ -123,7 +123,7 @@ class _HeatmapPageState extends State<HeatmapPage> {
   Future<void> _loadMarkerIcons() async {
     if (_markerIconsReady) return;
 
-    const config = ImageConfiguration(size: Size(48, 48));
+    const config = ImageConfiguration(size: Size(24, 24));
 
     _markerIcons['VIOLENCE'] = await BitmapDescriptor.asset(
       config,

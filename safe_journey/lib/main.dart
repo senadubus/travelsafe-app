@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'features/heatmap/home_shell_page.dart';
+import 'features/shell/home_shell_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
