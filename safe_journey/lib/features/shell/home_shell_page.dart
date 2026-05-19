@@ -19,7 +19,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
   // Pages are created once; IndexedStack keeps them alive.
   static final List<Widget> _pages = [
     const HeatmapPage(),
-    const CrimePointsPage(),
+    const PredictedHeatmapPage(),
     const SafeRoutePage(),
     const ProfilePage(),
   ];
