@@ -303,7 +303,7 @@ class _HeatmapHeader extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _ModeButton(
-                      title: 'Gerçek Yoğunluk',
+                      title: 'Actual Density',
                       icon: Icons.local_fire_department_rounded,
                       selected: mode == HeatmapMode.actual,
                       onTap: () => onModeChanged(HeatmapMode.actual),
@@ -311,7 +311,7 @@ class _HeatmapHeader extends StatelessWidget {
                   ),
                   Expanded(
                     child: _ModeButton(
-                      title: 'Tahmini Risk',
+                      title: 'Predicted Risk',
                       icon: Icons.auto_graph_rounded,
                       selected: mode == HeatmapMode.predicted,
                       onTap: () => onModeChanged(HeatmapMode.predicted),
@@ -393,12 +393,12 @@ class _ActualFilterBar extends StatelessWidget {
   final ValueChanged<String> onCrimeChanged;
 
   String _dayLabel(int d) {
-    if (d == 7) return '7 g';
-    if (d == 30) return '1 ay';
-    if (d == 90) return '3 ay';
-    if (d == 180) return '6 ay';
-    if (d == 365) return '1 yıl';
-    return '$d g';
+    if (d == 7) return '7 d';
+    if (d == 30) return '1 mo';
+    if (d == 90) return '3 mo';
+    if (d == 180) return '6 mo';
+    if (d == 365) return '1 yr';
+    return '$d d';
   }
 
   @override
@@ -448,7 +448,7 @@ class _PredictionFilterBar extends StatelessWidget {
       child: _HorizontalSelector<String>(
         items: weeks,
         selected: selectedWeekStart,
-        labelBuilder: (v) => 'Hafta: $v',
+        labelBuilder: (v) => 'Week: $v',
         onSelected: onWeekChanged,
         accentColor: _kOrange,
       ),
@@ -555,12 +555,12 @@ class _LegendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = mode == HeatmapMode.actual
-        ? 'Gerçek suç yoğunluğu'
-        : 'Tahmini suç riski';
+        ? 'Actual crime density'
+        : 'Predicted crime risk';
 
     final subtitle = mode == HeatmapMode.actual
-        ? 'Geçmiş suç kayıtlarına göre'
-        : 'XGBoost tahmin çıktısına göre';
+        ? 'Based on historical records'
+        : 'Based on XGBoost predictions';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),

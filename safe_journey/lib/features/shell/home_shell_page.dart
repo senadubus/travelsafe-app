@@ -28,22 +28,22 @@ class _HomeShellPageState extends State<HomeShellPage> {
     NavigationDestination(
       icon: Icon(Icons.map_outlined),
       selectedIcon: Icon(Icons.map),
-      label: 'Harita',
+      label: 'Map',
     ),
     NavigationDestination(
       icon: Icon(Icons.warning_amber_outlined),
       selectedIcon: Icon(Icons.warning_amber_rounded),
-      label: 'Olası Suç Noktaları',
+      label: 'Potential Crime Hotspots',
     ),
     NavigationDestination(
       icon: Icon(Icons.alt_route_outlined),
       selectedIcon: Icon(Icons.alt_route),
-      label: 'Güvenli Rota',
+      label: 'Safe Route',
     ),
     NavigationDestination(
       icon: Icon(Icons.person_outline),
       selectedIcon: Icon(Icons.person),
-      label: 'Profil',
+      label: 'Profile',
     ),
   ];
 

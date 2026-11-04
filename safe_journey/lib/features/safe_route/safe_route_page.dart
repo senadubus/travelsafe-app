@@ -430,7 +430,7 @@ class _SafeRoutePageState extends State<SafeRoutePage>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Başlangıç veya varış adresi bulunamadı.'),
+              content: Text('Start or destination address could not be found.'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -454,7 +454,7 @@ class _SafeRoutePageState extends State<SafeRoutePage>
           Marker(
             markerId: const MarkerId('start'),
             position: resolvedStart,
-            infoWindow: const InfoWindow(title: 'Başlangıç'),
+            infoWindow: const InfoWindow(title: 'Start'),
             icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueViolet),
           ),
@@ -463,7 +463,7 @@ class _SafeRoutePageState extends State<SafeRoutePage>
           Marker(
             markerId: const MarkerId('end'),
             position: resolvedEnd,
-            infoWindow: const InfoWindow(title: 'Varış'),
+            infoWindow: const InfoWindow(title: 'Destination'),
             icon: BitmapDescriptor.defaultMarkerWithHue(
                 BitmapDescriptor.hueOrange),
           ),
@@ -497,12 +497,12 @@ class _SafeRoutePageState extends State<SafeRoutePage>
 
       _showSheet();
     } catch (e) {
-      debugPrint('Rota API hata: $e');
+      debugPrint('Route API error: $e');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Rota alınamadı: $e'),
+            content: Text('Failed to calculate route: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -549,10 +549,12 @@ class _SafeRoutePageState extends State<SafeRoutePage>
   }
 
   Color _riskColor(String level) {
-    switch (level) {
-      case 'Düşük':
+    switch (level.toLowerCase()) {
+      case 'düşük':
+      case 'low':
         return const Color(0xFF22C55E);
-      case 'Orta':
+      case 'orta':
+      case 'medium':
         return Colors.orange;
       default:
         return Colors.red;
@@ -582,7 +584,7 @@ class _SafeRoutePageState extends State<SafeRoutePage>
               markerId: const MarkerId('start'),
               position: point,
               infoWindow: InfoWindow(
-                title: 'Başlangıç',
+                title: 'Start',
                 snippet:
                     '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
               ),
@@ -605,7 +607,7 @@ class _SafeRoutePageState extends State<SafeRoutePage>
             markerId: const MarkerId('end'),
             position: point,
             infoWindow: InfoWindow(
-              title: 'Varış',
+              title: 'Destination',
               snippet:
                   '${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
             ),
@@ -866,7 +868,7 @@ class _CompactHeader extends StatelessWidget {
           Row(
             children: [
               const Text(
-                'Güvenli Rota',
+                'Safe Route',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -887,7 +889,7 @@ class _CompactHeader extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text(
-                    'Temizle',
+                    'Clear',
                     style: TextStyle(fontSize: 13),
                   ),
                 ),
@@ -936,7 +938,7 @@ class _CompactHeader extends StatelessWidget {
                       _InlineInput(
                         controller: fromCtrl,
                         focusNode: fromFocus,
-                        hint: 'Nereden?',
+                        hint: 'Where from?',
                       ),
                       Divider(
                         height: 10,
@@ -946,7 +948,7 @@ class _CompactHeader extends StatelessWidget {
                       _InlineInput(
                         controller: toCtrl,
                         focusNode: toFocus,
-                        hint: 'Nereye?',
+                        hint: 'Where to?',
                       ),
                     ],
                   ),
@@ -1175,7 +1177,7 @@ class _RouteSheet extends StatelessWidget {
   final Color Function(String) riskColor;
   final VoidCallback onClose;
 
-  static const _labels = ['En Kısa', 'En Güvenli', 'Alternatif'];
+  static const _labels = ['Shortest', 'Safest', 'Alternative'];
 
   @override
   Widget build(BuildContext context) {
@@ -1216,7 +1218,7 @@ class _RouteSheet extends StatelessWidget {
                         ),
                       ),
                       const Text(
-                        'Rotalar',
+                        'Routes',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1245,7 +1247,7 @@ class _RouteSheet extends StatelessWidget {
                 final route = response.routes[i];
                 final isSelected = selectedIndex == i;
                 final color = routeColor(i);
-                final label = i < _labels.length ? _labels[i] : 'Rota ${i + 1}';
+                final label = i < _labels.length ? _labels[i] : 'Route ${i + 1}';
 
                 return GestureDetector(
                   onTap: () => onSelectRoute(i),
@@ -1296,7 +1298,7 @@ class _RouteSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Risk: % ${route.totalRisk.toStringAsFixed(0)}',
+                          'Risk: ${route.totalRisk.toStringAsFixed(0)}%',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,
@@ -1313,7 +1315,7 @@ class _RouteSheet extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            '${route.riskLevel} %${route.totalRisk.toStringAsFixed(0)}',
+                            '${route.riskLevel} ${route.totalRisk.toStringAsFixed(0)}%',
                             style: TextStyle(
                               fontSize: 11,
                               color: riskColor(route.riskLevel),
@@ -1352,7 +1354,7 @@ class _CrimeDetailSheet extends StatelessWidget {
         ? '${crime.crimeDate!.day.toString().padLeft(2, '0')}/'
             '${crime.crimeDate!.month.toString().padLeft(2, '0')}/'
             '${crime.crimeDate!.year}'
-        : 'Bilinmiyor';
+        : 'Unknown';
 
     final time = crime.crimeDate != null
         ? '${crime.crimeDate!.hour.toString().padLeft(2, '0')}:'
@@ -1361,7 +1363,7 @@ class _CrimeDetailSheet extends StatelessWidget {
 
     final description = crime.description?.trim().isNotEmpty == true
         ? crime.description!.trim()
-        : 'Ek açıklama mevcut değil.';
+        : 'No additional description available.';
 
     return Container(
       decoration: const BoxDecoration(
@@ -1444,7 +1446,7 @@ class _CrimeDetailSheet extends StatelessWidget {
               Expanded(
                 child: _InfoPill(
                   icon: Icons.calendar_today_rounded,
-                  label: 'Tarih',
+                  label: 'Date',
                   value: date,
                 ),
               ),
@@ -1452,7 +1454,7 @@ class _CrimeDetailSheet extends StatelessWidget {
               Expanded(
                 child: _InfoPill(
                   icon: Icons.access_time_rounded,
-                  label: 'Saat',
+                  label: 'Time',
                   value: time,
                 ),
               ),

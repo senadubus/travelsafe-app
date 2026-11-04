@@ -64,11 +64,11 @@ class UIRouteOption {
 
     return UIRouteOption(
       routeId: (json['route_id'] as num?)?.toInt() ?? 0,
-      routeLabel: json['route_label']?.toString() ?? 'Rota',
+      routeLabel: json['route_label']?.toString() ?? 'Route',
       totalLengthM: (json['total_length_m'] as num?)?.toDouble() ?? 0.0,
       totalRisk: (json['total_risk'] as num?)?.toDouble() ?? 0.0,
       totalCost: (json['total_cost'] as num?)?.toDouble() ?? 0.0,
-      riskLevel: json['risk_level']?.toString() ?? 'Bilinmiyor',
+      riskLevel: json['risk_level']?.toString() ?? 'Unknown',
       colorHex: json['color']?.toString() ?? '#9E9E9E',
       segments: rawSegments is List
           ? rawSegments.whereType<num>().map((e) => e.toInt()).toList()

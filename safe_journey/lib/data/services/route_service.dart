@@ -35,7 +35,7 @@ class RouteService {
 
     if (responseJson == null) {
       return UIRouteResponse(
-        message: 'Backend null response döndürdü',
+        message: 'Backend returned null response',
         startNode: null,
         endNode: null,
         routes: [],
@@ -54,7 +54,7 @@ class RouteService {
     }
 
     return UIRouteResponse(
-      message: 'Beklenmeyen response tipi: ${responseJson.runtimeType}',
+      message: 'Unexpected response type: ${responseJson.runtimeType}',
       startNode: null,
       endNode: null,
       routes: [],
@@ -63,6 +63,6 @@ class RouteService {
   }
 
   Future<void> debugHealthCheck() async {
-    debugPrint('RouteService hazır');
+    debugPrint('RouteService ready');
   }
 }

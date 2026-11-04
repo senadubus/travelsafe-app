@@ -27,11 +27,11 @@ const _kCrimeTypes = <String>[
 ];
 
 const _kDayOptions = <_DayOption>[
-  _DayOption(label: '7 g', days: 7),
-  _DayOption(label: '1 ay', days: 30),
-  _DayOption(label: '3 ay', days: 90),
-  _DayOption(label: '6 ay', days: 180),
-  _DayOption(label: '1 yıl', days: 365),
+  _DayOption(label: '7 d', days: 7),
+  _DayOption(label: '1 mo', days: 30),
+  _DayOption(label: '3 mo', days: 90),
+  _DayOption(label: '6 mo', days: 180),
+  _DayOption(label: '1 yr', days: 365),
 ];
 
 String crimeCategory(String crime) {
@@ -605,13 +605,13 @@ class _HeatmapPageState extends State<HeatmapPage>
               children: [
                 _MapFab(
                   icon: Icons.my_location,
-                  tooltip: 'Merkeze dön',
+                  tooltip: 'Recenter',
                   onTap: _recenter,
                 ),
                 const SizedBox(height: 8),
                 _MapFab(
                   icon: _heatmapVisible ? Icons.layers : Icons.layers_clear,
-                  tooltip: _heatmapVisible ? 'Heatmap gizle' : 'Heatmap göster',
+                  tooltip: _heatmapVisible ? 'Hide heatmap' : 'Show heatmap',
                   active: _heatmapVisible,
                   onTap: () async {
                     setState(() => _heatmapVisible = !_heatmapVisible);
@@ -893,7 +893,7 @@ class _CrimeDetailSheet extends StatelessWidget {
         ? '${crime.crimeDate!.day.toString().padLeft(2, '0')}/'
             '${crime.crimeDate!.month.toString().padLeft(2, '0')}/'
             '${crime.crimeDate!.year}'
-        : 'Bilinmiyor';
+        : 'Unknown';
 
     final time = crime.crimeDate != null
         ? '${crime.crimeDate!.hour.toString().padLeft(2, '0')}:'
@@ -902,7 +902,7 @@ class _CrimeDetailSheet extends StatelessWidget {
 
     final description = (crime.description?.trim().isNotEmpty == true)
         ? crime.description!.trim()
-        : 'Ek açıklama mevcut değil.';
+        : 'No additional description available.';
 
     return Container(
       height: _kCrimeSheetHeight,
@@ -934,7 +934,7 @@ class _CrimeDetailSheet extends StatelessWidget {
             ),
           ),
 
-          // Başlık
+          // Header
           Row(
             children: [
               Container(
@@ -971,7 +971,7 @@ class _CrimeDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Olay detayı',
+                      'Incident details',
                       style:
                           TextStyle(fontSize: 11, color: Colors.grey.shade500),
                     ),
@@ -996,13 +996,13 @@ class _CrimeDetailSheet extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Tarih / Saat pills
+          // Date / Time pills
           Row(
             children: [
               Expanded(
                 child: _InfoPill(
                   icon: Icons.calendar_today_rounded,
-                  label: 'Tarih',
+                  label: 'Date',
                   value: date,
                 ),
               ),
@@ -1010,7 +1010,7 @@ class _CrimeDetailSheet extends StatelessWidget {
               Expanded(
                 child: _InfoPill(
                   icon: Icons.access_time_rounded,
-                  label: 'Saat',
+                  label: 'Time',
                   value: time,
                 ),
               ),
