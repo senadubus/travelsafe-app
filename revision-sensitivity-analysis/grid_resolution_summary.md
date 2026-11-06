@@ -14,9 +14,9 @@ model; only a sparsity analysis was performed.
 
 | Resolution (m) | Total grids | Active grids | Active ratio | Total grid-weeks | Zero grid-week ratio | Mean crimes/grid-week | Median crimes/grid-week | Grids in model | MAE | RMSE | R² | Normalized MAE | Prep time (s) | Model time (s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 250 | 24,768 | 8,412 | 0.340 | 1,804,320 | **64.2%** | 0.605 | 0 | 7,518 | 0.243 | 0.661 | 0.678 | 0.390 | 12.87 | 46.16 |
-| 500 | 6,192 | 2,377 | 0.384 | 534,720 | 34.2% | 2.045 | 1 | 2,228 | 0.838 | 1.567 | 0.694 | 0.398 | 2.61 | 13.22 |
-| 1000 | 1,548 | 676 | 0.437 | 155,040 | 16.6% | 7.058 | 5 | 646 | 2.051 | 3.385 | **0.833** | **0.282** | 0.77 | 6.21 |
+| 250 | 24,768 | 8,412 | 0.340 | 1,804,320 | **64.2%** | 0.605 | 0 | 7,518 | 0.243 | 0.661 | 0.678 | 0.390 | 12.33 | 51.16 |
+| 500 | 6,192 | 2,377 | 0.384 | 534,720 | 34.2% | 2.045 | 1 | 2,228 | 0.838 | 1.567 | 0.694 | 0.398 | 2.89 | 14.91 |
+| 1000 | 1,548 | 676 | 0.437 | 155,040 | 16.6% | 7.058 | 5 | 646 | 2.051 | 3.385 | **0.833** | **0.282** | 0.88 | 6.91 |
 | 10 (sparsity only) | 15,369,652 | 166,872 | 0.011 | 40,049,280 | **97.6%** | 1.132 | 1 | — | — | — | — | — | 0.17 | — |
 
 ## Comparison of the measured quantities
@@ -40,8 +40,8 @@ model; only a sparsity analysis was performed.
 6. **Number of grids used in the model** (grids with total crime ≥ 10): 646 (1000 m),
    2,228 (500 m), 7,518 (250 m).
 
-7. **Runtime.** Preparation 12.87 s / 2.61 s / 0.77 s and model fitting 46.16 s /
-   13.22 s / 6.21 s for 250 / 500 / 1000 m. The 10 m sparsity pass took 0.17 s (no
+7. **Runtime.** Preparation 12.33 s / 2.89 s / 0.88 s and model fitting 51.16 s /
+   14.91 s / 6.91 s for 250 / 500 / 1000 m. The 10 m sparsity pass took 0.18 s (no
    model was trained).
 
 8. **Grid size at 10 m.** 15,369,652 cells within the bounding box; 166,872 of these

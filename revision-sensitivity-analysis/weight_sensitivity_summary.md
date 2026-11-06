@@ -51,8 +51,10 @@ Balanced λ=5, Safest λ=50) were run under 4 weight sets →
 
 8. **Profile ranking.** The distance ordering Shortest ≤ Balanced ≤ Safest holds for
    every (scenario, mode, weight set) combination (18/18 triplets). The Safest route
-   has a lower normalized risk than the Shortest route in 16 of 24 scenario/mode/
-   weight-set cells.
+   has a strictly lower normalized risk than the Shortest route in 16 of 24
+   scenario/mode/weight-set cells (20 of 24 when ties are included; the corresponding
+   column `safest_better_than_shortest_cases` in the summary CSV uses the
+   non-strict ≤ comparison and reports 5/6 per weight set).
 
 ## Scope
 

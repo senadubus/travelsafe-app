@@ -35,8 +35,8 @@ travelsafe-app/
 │   │   │   ├── tiles.py               ← map tile endpoints
 │   │   │   ├── points.py              ← points of interest endpoints
 │   │   │   ├── route.py               ← route generation API
-│   │   │   └── ui_route.py            ← route API used by the Flutter app
-│   │   └── .env                       ← DATABASE_URL (not committed)
+│   │   │   └── ui_route.py             ← route API used by the Flutter app
+│   │   └── env.example                ← template for DATABASE_URL (copy to .env)
 │   └── requirements / environment     ← see "Backend" below
 │
 ├── revision-sensitivity-analysis/     ← reviewer response materials
@@ -173,8 +173,17 @@ data from the Chicago Open Data portal.
 
 ```bash
 cd travelsafe-api
-# create travelsafe-api/app/.env with:
-# DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5432/travelsafe
+
+# Database credentials for the analysis scripts are read from environment
+# variables. Set them in your shell, or create travelsafe-api/.env:
+#   DB_HOST=localhost
+#   DB_PORT=5432
+#   DB_NAME=travelsafe
+#   DB_USER=postgres
+#   DB_PASSWORD=<your-password>
+#   DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5432/travelsafe
+# A template is provided in travelsafe-api/app/env.example.
+
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
