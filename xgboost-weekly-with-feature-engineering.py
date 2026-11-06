@@ -8,6 +8,10 @@ import numpy as np
 import psycopg2
 import joblib
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -67,11 +71,11 @@ def safe_numeric(series):
 # =====================================================
 
 conn = psycopg2.connect(
-    host="localhost",
-    port="5432",
-    database="travelsafe",
-    user="postgres",
-    password="yeni_sifre"
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    database=os.getenv("DB_NAME", "travelsafe"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", "")
 )
 
 query = """
