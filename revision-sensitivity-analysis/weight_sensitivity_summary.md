@@ -1,12 +1,13 @@
-# Suç Kategorisi Ağırlıkları Duyarlılık Analizi 
+# Crime Category Weight Sensitivity Analysis — Summary
 
-**Amaç.** Mevcut temel ağırlıklar (Violent 1.0, Property 0.6, Drug/Vice 0.4,
-Public-order 0.3) yerine alternatif ağırlık setleri kullanıldığında rota üretiminin
-ne ölçüde değiştiğini göstermek. Aynı altı rota isteği (3 senaryo × 2 mod) ve aynı
-üç rota profili (Shortest λ=0, Balanced λ=5, Safest λ=50) ile 4 ağırlık seti
-çalıştırılmıştır → **4 × 3 × 2 × 3 = 72 rota kaydı**.
+**Objective.** To demonstrate the extent to which route generation changes when
+alternative weight sets are used instead of the baseline weights (Violent 1.0,
+Property 0.6, Drug/Vice 0.4, Public-order 0.3). The same six route requests
+(3 scenarios × 2 modes) and the same three route profiles (Shortest λ=0,
+Balanced λ=5, Safest λ=50) were run under 4 weight sets →
+**4 × 3 × 2 × 3 = 72 route records**.
 
-## Ağırlık setleri
+## Weight sets
 
 | Set | Violent | Property | Drug/Vice | Public-order |
 |---|---|---|---|---|
@@ -15,46 +16,48 @@ ne ölçüde değiştiğini göstermek. Aynı altı rota isteği (3 senaryo × 2
 | Compressed | 1.0 | 0.8 | 0.6 | 0.4 |
 | Violent-focused | 1.0 | 0.5 | 0.25 | 0.15 |
 
-## Sonuçlar (`weight_sensitivity_summary.csv`)
+## Results (`weight_sensitivity_summary.csv`)
 
-| Ağırlık seti | Değişen rota | Değişim oranı | Ort. Jaccard | Min. Jaccard | Ort. overlap | Maks. risk sapması | Ort. mesafe sapması (m) | Ort. süre (ms) |
+| Weight set | Routes changed | Change ratio | Mean Jaccard | Min Jaccard | Mean overlap | Max risk deviation | Mean distance deviation (m) | Mean time (ms) |
 |---|---|---|---|---|---|---|---|---|
-| Base | 0/18 | 0,00 | 1,000 | 1,000 | 1,000 | 0,000 | 0,00 | 7451,80 |
-| Equal | 5/18 | 0,28 | 0,943 | 0,611 | 0,970 | 0,170 | 0,11 | 7631,85 |
-| Compressed | 3/18 | 0,17 | 0,947 | 0,611 | 0,972 | 0,179 | 0,11 | 7560,28 |
-| Violent-focused | 2/18 | 0,11 | 0,985 | 0,758 | 0,992 | 0,015 | 1,06 | 7445,69 |
+| Base | 0/18 | 0.00 | 1.000 | 1.000 | 1.000 | 0.000 | 0.00 | 7451.80 |
+| Equal | 5/18 | 0.28 | 0.943 | 0.611 | 0.970 | 0.170 | 0.11 | 7631.85 |
+| Compressed | 3/18 | 0.17 | 0.947 | 0.611 | 0.972 | 0.179 | 0.11 | 7560.28 |
+| Violent-focused | 2/18 | 0.11 | 0.985 | 0.758 | 0.992 | 0.015 | 1.06 | 7445.69 |
 
-## Bulgular
+## Findings
 
-1. **Rotalar ağırlık değişimine büyük ölçüde dayanıklı.** Equal sette bile 18 rotanın
-   yalnızca 5'i (%28) değişiyor; Violent-focused sette bu sayı 2/18'e (%11) düşüyor.
-   Ortalama Jaccard 0,94–0,99 aralığında, yani seçilen yol segmentlerinin ezici
-   çoğunluğu korunuyor.
+1. **Routes are largely robust to weight changes.** Even under the Equal set only
+   5 of 18 routes (28%) change; under Violent-focused this drops to 2/18 (11%).
+   Mean Jaccard lies in the 0.94–0.99 range, i.e. the overwhelming majority of the
+   selected road segments are preserved.
 
-2. **Değişim yalnızca Balanced profilinde yoğunlaşıyor.** Değişen 10 rotanın tamamı
-   Balanced (λ=5) profilinde. Shortest (λ=0) riskten bağımsız olduğu için hiç değişmiyor;
-   Safest (λ=50) ise risk ağırlığındaki değişime karşı yeterince baskın olduğu için
-   neredeyse hiç sapmıyor (yalnızca marjinal Jaccard 0,94–0,98).
+2. **Changes are concentrated in the Balanced profile.** All 10 changed routes
+   belong to the Balanced (λ=5) profile. Shortest (λ=0) is independent of risk and
+   therefore never changes; Safest (λ=50) is sufficiently dominated by the risk
+   weight that it barely deviates (only marginal Jaccard 0.94–0.98).
 
-3. **Profil sıralaması korunuyor.** Her (senaryo, mod, ağırlık seti) için mesafeye göre
-   sıralama tutarlı: Shortest ≤ Balanced ≤ Safest. Ayrıca Safest rotasının normalize
-   riski Shortest'ten düşük çıkıyor (6 durumda 5'inde). Yani ağırlıkların değişmesi
-   rota alternatiflerinin *sıralamasını* bozmuyor, sadece Balanced'ın seçtiği segmentleri
-   kaydırıyor.
+3. **Profile ranking is preserved.** For every (scenario, mode, weight set) the
+   distance-based ordering is consistent: Shortest ≤ Balanced ≤ Safest. In addition,
+   the normalized risk of the Safest route comes out lower than that of Shortest
+   (in 5 of 6 cases). In other words, changing the weights does not disturb the
+   *ranking* of route alternatives; it only shifts the segments chosen by Balanced.
 
-4. **Mesafe etkisi ihmal edilebilir.** Ortalama mutlak mesafe sapması 0,11 m
-   (Equal/Compressed) ve 1,06 m (Violent-focused). Yani ağırlıklandırma tercihi rota
-   uzunluğunu pratikte değiştirmiyor.
+4. **Distance effect is negligible.** The mean absolute distance deviation is
+   0.11 m (Equal/Compressed) and 1.06 m (Violent-focused). The weighting preference
+   therefore does not change route length in practice.
 
-5. **Süre sabit.** Ortalama rota üretim süresi tüm setlerde 7,45–7,63 s aralığında;
-   ağırlık seti sayısı çalışma zamanını etkilemiyor (aynı graf ve aynı edge sayısı).
+5. **Runtime is stable.** Mean route generation time lies in the 7.45–7.63 s range
+   for all sets; the number of weight sets does not affect runtime (same graph and
+   same number of edges).
 
-## Yorum
+## Interpretation
 
-Ağırlıklandırma tercihi, seçilen rotaların **kimliğini** değil yalnızca **derecelendirmesini**
-etkiliyor. Bu, makalede önerilen temel ağırlıkların (1.0/0.6/0.4/0.3) sonuçlarının
-alternatif ağırlıklara karşı savunulabilir olduğunu gösteriyor: farklı bir kriminolojik
-öncelik benimsenmesi durumunda bile aynı rota ailesi seçilmeye devam ediyor.
+The weighting preference affects only the **grading** of the chosen routes, not
+their **identity**. This shows that the results obtained with the baseline weights
+proposed in the paper (1.0/0.6/0.4/0.3) are defensible against alternative weights:
+even under a different criminological priority, the same route family continues to
+be selected.
 
-**Uyarı:** Bu analiz yalnızca 3 senaryo × 2 mod üzerinde yapılmıştır; genel bir
-"ağırlık duyarsızlığı" iddiası için daha fazla O-D çifti gerekir.
+**Caveat:** This analysis was carried out on only 3 scenarios × 2 modes; a general
+claim of "weight insensitivity" would require more O-D pairs.

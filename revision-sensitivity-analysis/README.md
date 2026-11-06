@@ -1,107 +1,110 @@
 # Revision Sensitivity Analysis — TravelSafe
 
-Bu klasör, **TravelSafe** makalesinin hakem raporuna yanıt olarak yapılan iki
-duyarlılık analizini ve tekrar üretilebilirlik dosyalarını içerir:
+This folder contains the two sensitivity analyses performed in response to the
+reviewer report on the **TravelSafe** paper, together with the reproducibility
+materials:
 
-1. **Grid çözünürlüğü duyarlılık analizi** (250 / 500 / 1000 m + 10 m seyreklik)
-2. **Suç kategorisi ağırlık duyarlılık analizi** (Base / Equal / Compressed / Violent-focused)
+1. **Grid resolution sensitivity analysis** (250 / 500 / 1000 m + 10 m sparsity)
+2. **Crime category weight sensitivity analysis** (Base / Equal / Compressed / Violent-focused)
 
-> Bu çalışma, makaledeki Tablo 3 sonuçlarını değiştirmek için değil, hakemin
-> grid boyutu ve ağırlıklandırma tercihlerine ilişkin sorularını sayısal olarak
-> yanıtlamak için yapılmıştır.
+> This work is not intended to change the results in Table 3 of the paper. It was
+> carried out to answer, numerically, the reviewer's questions regarding grid size
+> and weighting preferences.
 
 ---
 
-## 1. Veri ve dönem
+## 1. Data and period
 
-| Öğe | Değer |
+| Item | Value |
 |---|---|
-| Suç kaynağı | City of Chicago "Crimes — 2001 to Present" (Open Data Portal) |
-| Analiz dönemi | **2021-01-04 – 2025-08-04** (haftalık, Pazartesi başlangıçlı) |
+| Crime source | City of Chicago "Crimes — 2001 to Present" (Open Data Portal) |
+| Analysis period | **2021-01-04 – 2025-08-04** (weekly, Monday start) |
 | Bounding box | lat 41.63732681153954 – 42.02280114700859, lng −87.94558663867282 – −87.51375507892669 |
-| Ham kayıt sayısı | 1.094.336 |
-| Yol ağı | OpenStreetMap → PostgreSQL/PostGIS (`road_nodes`, `road_segments`) |
-| Veritabanı | PostgreSQL + PostGIS + pgRouting (`travelsafe`) |
-| Referans enlem (m↔derece) | 41.85° (111.320 m/der; lng için cos düzeltmesi) |
+| Raw records | 1,094,336 |
+| Road network | OpenStreetMap → PostgreSQL/PostGIS (`road_nodes`, `road_segments`) |
+| Database | PostgreSQL + PostGIS + pgRouting (`travelsafe`) |
+| Reference latitude (m↔degree) | 41.85° (111,320 m/deg; cos correction for lng) |
 
-**Suç kategorisi ağırlıkları (Base):** Violent 1.0 · Property 0.6 · Drug/Vice 0.4 · Public-order 0.3
+**Crime category weights (Base):** Violent 1.0 · Property 0.6 · Drug/Vice 0.4 · Public-order 0.3
 
 **Model:** XGBoost — `n_estimators=400, learning_rate=0.03, max_depth=5,
 min_child_weight=15, subsample=0.7, colsample_bytree=0.5, reg_alpha=1.0, reg_lambda=5.0`,
-hedef `z = log1p(y) − log1p(y^(4))` (makale Eq. 2), 5-katlı kronolojik `TimeSeriesSplit`.
+target `z = log1p(y) − log1p(y^(4))` (paper Eq. 2), 5-fold chronological `TimeSeriesSplit`.
 
 ---
 
-## 2. Klasör yapısı
+## 2. Folder structure
 
 ```
-revision_sensitivity_analysis/
-├── README.md                          ← bu dosya
-├── grid_resolution_summary.md         ← grid analizi kısa özeti (TR, bulgular + yorum)
-├── weight_sensitivity_summary.md      ← ağırlık analizi kısa özeti (TR)
-├── weight_sensitivity_analysis_EN.md  ← ağırlık analizi özeti (EN, makale için)
+revision-sensitivity-analysis/
+├── README.md                          ← this file
+├── grid_resolution_summary.md         ← grid analysis summary (findings + interpretation)
+├── weight_sensitivity_summary.md      ← weight analysis summary
+├── weight_sensitivity_analysis_EN.md  ← extended weight analysis report (EN)
 ├── sql/
-│   ├── schema_full.sql                ← pg_dump --schema-only (tüm şema)
-│   ├── schema_core.sql                ← analizle ilgili 10 çekirdek tablo
-│   └── queries.sql                    ← analizlerde kullanılan SQL sorguları
+│   ├── schema_full.sql                ← pg_dump --schema-only (full schema)
+│   ├── schema_core.sql                ← 10 core tables used in the analyses
+│   └── queries.sql                    ← SQL queries used in the analyses
 ├── scripts/
-│   ├── grid_resolution_comparison.py  ← analiz 1 (250/500/1000 m + 10 m seyreklik)
-│   ├── test_weight_sensitivity.py     ← analiz 2 (4 ağırlık seti × 6 senaryo × 3 profil)
-│   ├── reference_xgboost_weekly_main_script.py  ← ana XGBoost eğitim script'i (referans)
-│   └── reference_osm_road_import.py   ← OSM yol ağının DB'ye aktarım script'i (referans)
+│   ├── grid_resolution_comparison.py  ← analysis 1 (250/500/1000 m + 10 m sparsity)
+│   ├── test_weight_sensitivity.py     ← analysis 2 (4 weight sets × 6 requests × 3 profiles)
+│   ├── reference_xgboost_weekly_main_script.py  ← main XGBoost training script (reference)
+│   └── reference_osm_road_import.py   ← OSM road network import script (reference)
 ├── data/
-│   ├── grid_resolution_summary.csv
-│   ├── grid_resolution_cv_metrics.csv
-│   ├── weight_sensitivity_routes.csv
-│   └── weight_sensitivity_summary.csv
+│   ├── grid_resolution_summary.csv        ← per-resolution metrics (+ fold std, 10 m sparsity row)
+│   ├── grid_resolution_cv_metrics.csv     ← per-fold metrics (3 resolutions × 5 folds)
+│   ├── weight_sensitivity_routes.csv      ← per-route results (72 records)
+│   ├── weight_sensitivity_summary.csv     ← per-weight-set summary + ranking preservation
+│   └── grid_resolution_comparison.csv     ← auxiliary comparison table
 └── logs/
-    └── run_log_grid_resolution.txt
+    ├── run_log_grid_resolution.txt        ← console output of analysis 1
+    └── run_log_weight_sensitivity.txt     ← console output of analysis 2
 ```
 
-> **Not:** `schema_*.sql` dosyaları canlı veritabanından `pg_dump --schema-only`
-> ile üretilmiştir; tabloların/indekslerin birebir kaydıdır. Orijinal kurulum
-> script'leri ayrıca saklanmamıştı.
+> **Note:** The `schema_*.sql` files were generated from the live database with
+> `pg_dump --schema-only` and are an exact record of the tables and indexes. The
+> original setup scripts had not been stored separately.
 
 ---
 
-## 3. Analiz 1 — Grid çözünürlüğü
+## 3. Analysis 1 — Grid resolution
 
-**Amaç:** Aynı veri dönemi, temizleme kuralları (grid başına toplam suç ≥ 10),
-suç kategorileri, hedef tanımı ve XGBoost ayarları korunarak 250 / 500 / 1000 m
-çözünürlüklerinin karşılaştırılması. 10 m için tam model eğitilmez; yalnızca
-seyreklik analizi yapılır.
+**Objective:** Compare the 250 / 500 / 1000 m resolutions while keeping the same
+data period, cleaning rules (total crime per grid ≥ 10), crime categories, target
+definition and XGBoost settings. No full model is trained for 10 m; only the
+sparsity analysis is performed.
 
-**Çalıştırma:**
+**Run:**
 ```bash
-cd travelsafe-api
+cd revision-sensitivity-analysis/scripts
 python grid_resolution_comparison.py
 ```
-Gereksinim: `psycopg2`, `pandas`, `numpy`, `scikit-learn`, `xgboost`, `python-dotenv`;
-`app/.env` içinde `DATABASE_URL` (veya script içindeki `DB_PARAMS`).
+Requirements: `psycopg2`, `pandas`, `numpy`, `scikit-learn`, `xgboost`, `python-dotenv`;
+`DATABASE_URL` in `app/.env` (or the `DB_PARAMS` block inside the script).
 
-**Çıktılar:**
-- `data/grid_resolution_summary.csv` — çözünürlük başına tüm metrikler (+ fold std'leri, 10 m seyreklik satırı)
-- `data/grid_resolution_cv_metrics.csv` — fold bazlı (3 çözünürlük × 5 fold = 15 satır)
-- `grid_resolution_summary.md` — kısa özet ve yorum
+**Outputs:**
+- `data/grid_resolution_summary.csv` — all metrics per resolution (+ fold std, 10 m sparsity row)
+- `data/grid_resolution_cv_metrics.csv` — per-fold metrics (3 resolutions × 5 folds = 15 rows)
+- `grid_resolution_summary.md` — short summary and interpretation
 
-**Sonuç (özet):**
+**Results (summary):**
 
-| m | Sıfır oranı | MAE | RMSE | R² | Normalize MAE | Model grid |
+| m | Zero ratio | MAE | RMSE | R² | Normalized MAE | Grids in model |
 |---|---|---|---|---|---|---|
-| 250 | %64,2 | 0,243 | 0,661 | 0,678 | 0,390 | 7.518 |
-| 500 | %34,2 | 0,838 | 1,567 | 0,694 | 0,398 | 2.228 |
-| 1000 | %16,6 | 2,051 | 3,385 | 0,833 | **0,282** | 646 |
-| 10 | %97,6 | — | — | — | — | — |
+| 250 | 64.2% | 0.243 | 0.661 | 0.678 | 0.390 | 7,518 |
+| 500 | 34.2% | 0.838 | 1.567 | 0.694 | 0.398 | 2,228 |
+| 1000 | 16.6% | 2.051 | 3.385 | 0.833 | **0.282** | 646 |
+| 10 | 97.6% | — | — | — | — | — |
 
-10 m: 15.369.652 hücre, yalnızca %1,09'u aktif → haftalık tahmin için aşırı seyrek.
+10 m: 15,369,652 cells, only 1.09% active → far too sparse for weekly prediction.
 
 ---
 
-## 4. Analiz 2 — Ağırlık duyarlılığı
+## 4. Analysis 2 — Weight sensitivity
 
-**Amaç:** Farklı kriminolojik önceliklerin rota seçimine etkisini ölçmek.
-Aynı 3 senaryo × 2 mod × 3 profil (Shortest λ=0, Balanced λ=5, Safest λ=50)
-4 ağırlık seti ile çalıştırılır → **72 rota kaydı**.
+**Objective:** Measure the effect of different criminological priorities on route
+selection. The same 3 scenarios × 2 modes × 3 profiles (Shortest λ=0, Balanced λ=5,
+Safest λ=50) are run under 4 weight sets → **72 route records**.
 
 | Set | Violent | Property | Drug/Vice | Public-order |
 |---|---|---|---|---|
@@ -110,39 +113,39 @@ Aynı 3 senaryo × 2 mod × 3 profil (Shortest λ=0, Balanced λ=5, Safest λ=50
 | Compressed | 1.0 | 0.8 | 0.6 | 0.4 |
 | Violent-focused | 1.0 | 0.5 | 0.25 | 0.15 |
 
-**Çalıştırma:**
+**Run:**
 ```bash
-cd travelsafe-api
+cd revision-sensitivity-analysis/scripts
 python test_weight_sensitivity.py
 ```
 
-**Çıktılar:**
-- `data/weight_sensitivity_routes.csv` — her (ağırlık seti, senaryo, mod, profil) için:
-  rota mesafesi, normalize risk, üretim süresi, `changed_vs_base`,
+**Outputs:**
+- `data/weight_sensitivity_routes.csv` — for each (weight set, scenario, mode, profile):
+  route distance, normalized risk, generation time, `changed_vs_base`,
   `jaccard_vs_base`, `overlap_ratio_vs_base`
-- `data/weight_sensitivity_summary.csv` — ağırlık seti bazında özet + sıralama korunumu
-- `weight_sensitivity_summary.md` — kısa özet ve yorum
+- `data/weight_sensitivity_summary.csv` — per-weight-set summary + ranking preservation
+- `weight_sensitivity_summary.md` — short summary and interpretation
 
-**Sonuç (özet):**
+**Results (summary):**
 
-| Set | Değişen rota | Ort. Jaccard | Maks. risk sapması | Ort. mesafe sapması |
+| Set | Routes changed | Mean Jaccard | Max risk deviation | Mean distance deviation |
 |---|---|---|---|---|
-| Equal | 5/18 (%28) | 0,943 | 0,170 | 0,11 m |
-| Compressed | 3/18 (%17) | 0,947 | 0,179 | 0,11 m |
-| Violent-focused | 2/18 (%11) | 0,985 | 0,015 | 1,06 m |
+| Equal | 5/18 (28%) | 0.943 | 0.170 | 0.11 m |
+| Compressed | 3/18 (17%) | 0.947 | 0.179 | 0.11 m |
+| Violent-focused | 2/18 (11%) | 0.985 | 0.015 | 1.06 m |
 
-**Değişim yalnızca Balanced profilinde**; Shortest riskten bağımsız olduğu için hiç
-değişmez. Mesafe sıralaması (Shortest ≤ Balanced ≤ Safest) tüm ağırlık setlerinde
-ve tüm senaryo/mod kombinasyonlarında korunur.
+**Changes occur only in the Balanced profile**; Shortest is independent of risk and
+never changes. The distance ranking (Shortest ≤ Balanced ≤ Safest) is preserved for
+every weight set and every scenario/mode combination.
 
 ---
 
-## 5. Sınırlar
+## 5. Limitations
 
-- Ağırlık analizi yalnızca 3 O-D senaryosu × 2 mod üzerinde yapılmıştır; genel bir
-  "ağırlık duyarsızlığı" iddiası için daha fazla O-D çifti gerekir.
-- Grid analizindeki mutlak sayılar, ana `crime_grid_weekly` hattından farklı bir
-  panel/orijin kurgusu kullandığı için makaledeki Tablo 3 değerleriyle birebir
-  aynı olmayabilir; karşılaştırma **kendi içinde tutarlıdır**.
-- 10 m için model eğitilmemiştir (hakemin de belirttiği gibi zorunlu değildir);
-  yalnızca seyreklik göstergeleri raporlanmıştır.
+- The weight analysis covers only 3 O-D scenarios × 2 modes; a general claim of
+  "weight insensitivity" would require more O-D pairs.
+- The absolute numbers in the grid analysis may not match the values in Table 3 of
+  the paper exactly, because a different panel/origin construction is used than in
+  the main `crime_grid_weekly` pipeline; the comparison is **internally consistent**.
+- No model was trained for 10 m (not required, as the reviewer also noted); only
+  sparsity indicators are reported.
