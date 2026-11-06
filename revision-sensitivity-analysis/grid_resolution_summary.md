@@ -19,40 +19,31 @@ model; only a sparsity analysis was performed.
 | 1000 | 1,548 | 676 | 0.437 | 155,040 | 16.6% | 7.058 | 5 | 646 | 2.051 | 3.385 | **0.833** | **0.282** | 0.77 | 6.21 |
 | 10 (sparsity only) | 15,369,652 | 166,872 | 0.011 | 40,049,280 | **97.6%** | 1.132 | 1 | — | — | — | — | — | 0.17 | — |
 
-## Findings
+## Comparison of the measured quantities
 
-1. **Zero inflation rises steeply as the grid becomes finer.** The zero grid-week
-   ratio is 16.6% at 1000 m, 34.2% at 500 m and 64.2% at 250 m. As the grid
-   shrinks, the majority of targets become zero; the regression problem turns
-   into a zero-inflated one.
+1. **Zero grid-week ratio.** 16.6% (1000 m) → 34.2% (500 m) → 64.2% (250 m) → 97.6% (10 m).
+   The proportion of zero-valued grid-weeks increases monotonically as the grid
+   becomes finer.
 
-2. **Absolute MAE is misleading; the fair comparison is normalized MAE.** The MAE
-   at 250 m (0.243) looks small, but so is the mean crime count per cell (0.605).
-   Normalized MAE = MAE / mean observed crimes: **0.282** at 1000 m (best), 0.390
-   at 250 m and 0.398 at 500 m (worst). In other words, the coarse grid is more
-   successful in relative error.
+2. **Mean and median crimes per grid-week.** Mean 7.058 (1000 m) / 2.045 (500 m) /
+   0.605 (250 m); median 5 / 1 / 0. For 10 m the mean is 1.132 with a median of 1.
 
-3. **R² increases with resolution.** 0.678 (250 m) → 0.694 (500 m) → 0.833 (1000 m).
-   With a coarser grid the crime count per cell grows and the signal-to-noise ratio
-   rises, which markedly increases the explained variance.
+3. **Model error (5-fold mean).** MAE is 2.051 at 1000 m, 0.838 at 500 m and 0.243 at
+   250 m; RMSE is 3.385 / 1.567 / 0.661 respectively.
 
-4. **Cost–accuracy trade-off.** Model time is 46.2 s (250 m) → 13.2 s (500 m) →
-   6.2 s (1000 m); the number of grids in the model is 7,518 → 2,228 → 646. The
-   500 m setting offers a reasonable compromise between accuracy (normalized MAE
-   0.398) and cost (~13 s); 250 m provides no clear gain and instead pushes the
-   zero ratio up to 64%.
+4. **Normalized MAE** (MAE / mean observed crime count) is 0.282 at 1000 m, 0.398 at
+   500 m and 0.390 at 250 m. This is the only metric in which the three resolutions
+   are on a comparable scale.
 
-5. **10 × 10 m is not practical for weekly prediction.** Within the bounding box
-   there are 15.37 million cells; only **1.09%** of them contain a crime record and
-   **97.6%** of all grid-weeks are zero. At this level almost every cell is
-   represented by 0 or 1 incident per week; the weekly regression target carries no
-   signal. 10 m is only meaningful for point-level density visualization (heatmap),
-   not as a prediction unit.
+5. **R² (5-fold mean).** 0.833 (1000 m), 0.694 (500 m), 0.678 (250 m).
 
-## Recommended resolution
+6. **Number of grids used in the model** (grids with total crime ≥ 10): 646 (1000 m),
+   2,228 (500 m), 7,518 (250 m).
 
-- **500 m for weekly prediction and routing cost** (the current system) is
-  defensible in terms of the accuracy–cost balance.
-- **1000 m** where higher relative accuracy is required; **250 m** for finer
-  spatial distinction in visualization (but not for weekly prediction).
-- **10 m** only as an exploratory/visual layer; not suitable for weekly modelling.
+7. **Runtime.** Preparation 12.87 s / 2.61 s / 0.77 s and model fitting 46.16 s /
+   13.22 s / 6.21 s for 250 / 500 / 1000 m. The 10 m sparsity pass took 0.17 s (no
+   model was trained).
+
+8. **Grid size at 10 m.** 15,369,652 cells within the bounding box; 166,872 of these
+   (1.09%) contain at least one crime record. No model was trained at this
+   resolution.

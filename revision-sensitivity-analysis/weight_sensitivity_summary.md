@@ -25,39 +25,36 @@ Balanced λ=5, Safest λ=50) were run under 4 weight sets →
 | Compressed | 3/18 | 0.17 | 0.947 | 0.611 | 0.972 | 0.179 | 0.11 | 7560.28 |
 | Violent-focused | 2/18 | 0.11 | 0.985 | 0.758 | 0.992 | 0.015 | 1.06 | 7445.69 |
 
-## Findings
+## Comparison of the measured quantities
 
-1. **Routes are largely robust to weight changes.** Even under the Equal set only
-   5 of 18 routes (28%) change; under Violent-focused this drops to 2/18 (11%).
-   Mean Jaccard lies in the 0.94–0.99 range, i.e. the overwhelming majority of the
-   selected road segments are preserved.
+1. **Number of routes changed vs. Base.** Equal 5/18 (28%), Compressed 3/18 (17%),
+   Violent-focused 2/18 (11%).
 
-2. **Changes are concentrated in the Balanced profile.** All 10 changed routes
-   belong to the Balanced (λ=5) profile. Shortest (λ=0) is independent of risk and
-   therefore never changes; Safest (λ=50) is sufficiently dominated by the risk
-   weight that it barely deviates (only marginal Jaccard 0.94–0.98).
+2. **Edge-set Jaccard similarity vs. Base.** Mean 0.943 (Equal), 0.947 (Compressed),
+   0.985 (Violent-focused); minimum 0.611 / 0.611 / 0.758.
 
-3. **Profile ranking is preserved.** For every (scenario, mode, weight set) the
-   distance-based ordering is consistent: Shortest ≤ Balanced ≤ Safest. In addition,
-   the normalized risk of the Safest route comes out lower than that of Shortest
-   (in 5 of 6 cases). In other words, changing the weights does not disturb the
-   *ranking* of route alternatives; it only shifts the segments chosen by Balanced.
+3. **Overlap ratio vs. Base** (common segments / shorter route): mean 0.970 (Equal),
+   0.972 (Compressed), 0.992 (Violent-focused).
 
-4. **Distance effect is negligible.** The mean absolute distance deviation is
-   0.11 m (Equal/Compressed) and 1.06 m (Violent-focused). The weighting preference
-   therefore does not change route length in practice.
+4. **Maximum absolute deviation in normalized risk vs. Base:** 0.170 (Equal),
+   0.179 (Compressed), 0.015 (Violent-focused).
 
-5. **Runtime is stable.** Mean route generation time lies in the 7.45–7.63 s range
-   for all sets; the number of weight sets does not affect runtime (same graph and
-   same number of edges).
+5. **Mean absolute deviation in route distance vs. Base:** 0.11 m (Equal), 0.11 m
+   (Compressed), 1.06 m (Violent-focused).
 
-## Interpretation
+6. **Mean route generation time:** 7451.80 ms (Base), 7631.85 ms (Equal),
+   7560.28 ms (Compressed), 7445.69 ms (Violent-focused).
 
-The weighting preference affects only the **grading** of the chosen routes, not
-their **identity**. This shows that the results obtained with the baseline weights
-proposed in the paper (1.0/0.6/0.4/0.3) are defensible against alternative weights:
-even under a different criminological priority, the same route family continues to
-be selected.
+7. **Where the changes occur.** 6 of the 10 changed routes are in the Balanced (λ=5)
+   profile and 4 are in the Safest (λ=50) profile. No route changes in the Shortest
+   (λ=0) profile. Per-record values are in `weight_sensitivity_routes.csv`.
 
-**Caveat:** This analysis was carried out on only 3 scenarios × 2 modes; a general
-claim of "weight insensitivity" would require more O-D pairs.
+8. **Profile ranking.** The distance ordering Shortest ≤ Balanced ≤ Safest holds for
+   every (scenario, mode, weight set) combination (18/18 triplets). The Safest route
+   has a lower normalized risk than the Shortest route in 16 of 24 scenario/mode/
+   weight-set cells.
+
+## Scope
+
+The analysis covers 3 O-D scenarios × 2 modes (walk, car) × 3 route profiles under
+4 weight sets. It does not cover additional O-D pairs or additional profiles.
