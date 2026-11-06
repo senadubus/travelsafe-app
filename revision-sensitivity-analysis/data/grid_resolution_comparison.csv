@@ -1,0 +1,5 @@
+resolution_m,total_cells,active_cells,active_cell_ratio,total_grid_weeks,zero_grid_week_ratio,mean_crimes_per_grid_week,median_crimes_per_grid_week,model_cells,mae,rmse,r2,norm_mae,prep_time_s,model_time_s,note
+250,24768,8412,0.3396,1804320,0.6424,0.6045,0.0,7518.0,0.2425,0.6607,0.6782,0.3899,12.33,51.16,
+500,6192,2377,0.3839,534720,0.3417,2.0454,1.0,2228.0,0.8379,1.5674,0.6943,0.3981,2.89,14.91,
+1000,1548,676,0.4367,155040,0.1661,7.0577,5.0,646.0,2.051,3.3849,0.833,0.2824,0.88,6.91,
+10,15369652,166872,0.010857239968738394,40049280,0.9758590915991499,1.131885158239435,1.0,,,,,,0.18,,sadece seyreklik analizi (tam model egitilmedi)

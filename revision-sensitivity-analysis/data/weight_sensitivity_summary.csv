@@ -1,0 +1,5 @@
+weight_set,weights_violent_property_drug_public,n_route_records,n_routes_changed_vs_base,changed_ratio,avg_jaccard_vs_base,min_jaccard_vs_base,avg_overlap_ratio_vs_base,max_abs_risk_deviation,avg_abs_distance_deviation_m,avg_route_time_ms,mean_route_distance_m,mean_route_risk_normalized,dist_order_preserved_cases,safest_better_than_shortest_cases
+Base,1.0|0.6|0.4|0.3,18,0,0.0,1.0,1.0,1.0,0.0,0.0,7451.8,3302.09,0.6592,6/0,5/6
+Equal,1.0|1.0|1.0|1.0,18,5,0.2778,0.9429,0.6114,0.97,0.1704,0.11,7631.85,3301.98,0.6354,6/0,5/6
+Compressed,1.0|0.8|0.6|0.4,18,3,0.1667,0.947,0.6114,0.9721,0.1794,0.11,7560.28,3301.98,0.6356,6/0,5/6
+Violent-focused,1.0|0.5|0.25|0.15,18,2,0.1111,0.9851,0.7583,0.9919,0.015,1.06,7445.69,3303.15,0.6648,6/0,5/6

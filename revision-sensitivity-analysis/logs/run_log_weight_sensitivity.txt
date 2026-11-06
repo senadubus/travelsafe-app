@@ -1,0 +1,47 @@
+==============================================================================
+TravelSafe - Risk Ağırlık Duyarlılık Testi
+==============================================================================
+
+[1/4] Segment risk girdileri DB'den yükleniyor (bir kez)...
+      1136714 segment yüklendi (15.3s)
+
+[2/4] Her ağırlık seti için normalize risk hesaplanıyor...
+      Base             (1.0, 0.6, 0.4, 0.3) -> normalize edildi
+      Equal            (1.0, 1.0, 1.0, 1.0) -> normalize edildi
+      Compressed       (1.0, 0.8, 0.6, 0.4) -> normalize edildi
+      Violent-focused  (1.0, 0.5, 0.25, 0.15) -> normalize edildi
+
+[3/4] Rotasyonlar üretiliyor...
+      S1/walk: tamamlandı (start=10866667377, end=5805935461)
+      S1/car: tamamlandı (start=10866667382, end=5805935461)
+      S2/walk: tamamlandı (start=271188194, end=11139669101)
+      S2/car: tamamlandı (start=271188194, end=1308175623)
+Traceback (most recent call last):
+  File [35m"/home/sena/Desktop/tubitak/travelsafe-app/travelsafe-api/test_weight_sensitivity.py"[0m, line [35m484[0m, in [35m<module>[0m
+    [31mmain[0m[1;31m()[0m
+    [31m~~~~[0m[1;31m^^[0m
+  File [35m"/home/sena/Desktop/tubitak/travelsafe-app/travelsafe-api/test_weight_sensitivity.py"[0m, line [35m411[0m, in [35mmain[0m
+    seg_ids, total_len, path_nodes = [31mrun_dijkstra[0m[1;31m([0m
+                                     [31m~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mcur, start_node, end_node, mode_col,[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+        [1;31mseg_inputs, risk_norm, risk_w,[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"/home/sena/Desktop/tubitak/travelsafe-app/travelsafe-api/test_weight_sensitivity.py"[0m, line [35m293[0m, in [35mrun_dijkstra[0m
+    [31mpsycopg2.extras.execute_values[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mcur,[0m
+        [1;31m^^^^[0m
+        [1;31m"INSERT INTO tmp_seg_cost (seg_id, cost) VALUES %s",[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+        [1;31mcost_data,[0m
+        [1;31m^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"/home/sena/anaconda3/lib/python3.13/site-packages/psycopg2/extras.py"[0m, line [35m1299[0m, in [35mexecute_values[0m
+    [31mcur.execute[0m[1;31m(b''.join(parts))[0m
+    [31m~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^[0m
+[1;35mpsycopg2.OperationalError[0m: [35mSSL connection has been closed unexpectedly
+[0m
