@@ -23,6 +23,7 @@ python import_chicago_roads.py
 
 from __future__ import annotations
 
+import os
 import sys
 import traceback
 from typing import Iterable
@@ -30,17 +31,20 @@ from typing import Iterable
 import geopandas as gpd
 import osmnx as ox
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+
+load_dotenv()
 
 
 # =========================
 # AYARLAR
 # =========================
-DB_USER = "postgres"
-DB_PASSWORD = "yeni_sifre"
-DB_HOST = "localhost"
-DB_PORT = 5432
-DB_NAME = "travelsafe"
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "travelsafe")
 
 DB_SCHEMA = "public"
 

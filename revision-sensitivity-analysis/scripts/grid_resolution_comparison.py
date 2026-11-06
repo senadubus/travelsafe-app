@@ -51,18 +51,19 @@ warnings.filterwarnings("ignore")
 # DB BAĞLANTISI
 # ---------------------------------------------------------------------------
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "app", ".env"))
+load_dotenv()
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://postgres:yeni_sifre@localhost:5432/travelsafe",
+    "postgresql+psycopg2://USER:PASSWORD@localhost:5432/travelsafe",
 )
 
 DB_PARAMS = dict(
-    host="localhost",
-    port="5432",
-    database="travelsafe",
-    user="postgres",
-    password="yeni_sifre",
-)  # .env farklıysa düzeltilebilir
+    host=os.getenv("DB_HOST", "localhost"),
+    port=os.getenv("DB_PORT", "5432"),
+    database=os.getenv("DB_NAME", "travelsafe"),
+    user=os.getenv("DB_USER", "postgres"),
+    password=os.getenv("DB_PASSWORD", ""),
+)  # kimlik bilgileri ortam değişkenlerinden okunur (.env / shell)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_CSV = os.path.join(_HERE, "grid_resolution_comparison.csv")

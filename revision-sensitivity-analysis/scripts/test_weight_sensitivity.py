@@ -45,7 +45,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "app", ".env"))
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:yeni_sifre@localhost:5432/travelsafe",
+    "postgresql://USER:PASSWORD@localhost:5432/travelsafe",
 )
 # SQLAlchemy formatındaki URL'i psycopg2 formatına çevir
 DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql://")
