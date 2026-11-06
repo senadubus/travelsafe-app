@@ -37,8 +37,9 @@ hedef `z = log1p(y) − log1p(y^(4))` (makale Eq. 2), 5-katlı kronolojik `TimeS
 ```
 revision_sensitivity_analysis/
 ├── README.md                          ← bu dosya
-├── grid_resolution_summary.md         ← grid analizi kısa özeti (bulgular + yorum)
-├── weight_sensitivity_summary.md      ← ağırlık analizi kısa özeti
+├── grid_resolution_summary.md         ← grid analizi kısa özeti (TR, bulgular + yorum)
+├── weight_sensitivity_summary.md      ← ağırlık analizi kısa özeti (TR)
+├── weight_sensitivity_analysis_EN.md  ← ağırlık analizi özeti (EN, makale için)
 ├── sql/
 │   ├── schema_full.sql                ← pg_dump --schema-only (tüm şema)
 │   ├── schema_core.sql                ← analizle ilgili 10 çekirdek tablo
